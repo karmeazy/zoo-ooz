@@ -1,0 +1,1068 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Zoo | ooZ</title>
+    <link rel="icon" type="image/png" href="../common/favicon.png">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #2c2c2c;
+        }
+
+        button {
+            font: inherit;
+        }
+
+        main {
+            position: relative;
+            width: 100%;
+            height: 100dvh;
+            overflow: hidden;
+            perspective: 1400px;
+            --bar: 5vh;
+            --half: calc((100dvh - var(--bar)) / 2);
+        }
+
+        .flip-stage {
+            position: absolute;
+            inset: 0;
+            transform-origin: center;
+        }
+
+        .panel {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: var(--half);
+            padding: 0;
+            border: 0;
+            background: transparent;
+            cursor: crosshair;
+            overflow: hidden;
+            text-align: left;
+            color: whitesmoke;
+            isolation: isolate;
+            outline-offset: -5px;
+            transition:
+                background-color 0.6s ease,
+                color 0.6s ease;
+        }
+
+        .panel[data-position="top"] {
+            transform: translateY(0);
+            background: #2c2c2c;
+            color: whitesmoke;
+        }
+
+        .panel[data-position="bottom"] {
+            transform: translateY(calc(var(--half) + var(--bar)));
+            background: whitesmoke;
+            color: #2c2c2c;
+        }
+
+        .portraits {
+            position: absolute;
+            inset: 0;
+        }
+
+        .panel[data-position="top"] .portraits {
+            transform: rotate(180deg);
+        }
+
+        .portrait {
+            position: absolute;
+            width: 9.04vw;
+            height: 9.04vw;
+            object-fit: cover;
+            user-select: none;
+            pointer-events: none;
+            animation: appear 300ms ease both;
+        }
+
+        .caption {
+            position: absolute;
+            top: 3.8%;
+            left: 4%;
+            width: 92%;
+            font-size: clamp(10px, 1.4vw, 30px);
+            line-height: 1.25;
+            letter-spacing: .02em;
+            text-align: center;
+            margin: 0;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        .panel[data-position="top"] .caption {
+            top: 88%;
+            transform: rotate(180deg);
+        }
+
+        .divider {
+            position: absolute;
+            z-index: 3;
+            top: var(--half);
+            left: 0;
+            width: 100%;
+            height: var(--bar);
+            background: repeating-linear-gradient(
+                90deg,
+                #c700f4 0 2.76vw,
+                #70472b 2.76vw 10.81vw
+            );
+            pointer-events: none;
+        }
+
+        .ratio {
+            position: absolute;
+            z-index: 8;
+            top: 4.6vh;
+            right: 2.15vw;
+            display: grid;
+            grid-template-columns: repeat(4, 1.78vw);
+            gap: 0;
+            pointer-events: auto;
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .dot {
+            width: 1.78vw;
+            height: 1.78vw;
+            border: 2px solid #ff00db;
+            background: #ff002b;
+            border-radius: 50%;
+            transition: background 450ms, border-color 450ms;
+        }
+
+        .dot.animal {
+            background: #00ffe4;
+            border-color: #00ff41;
+        }
+
+        .controls {
+            position: absolute;
+            z-index: 5;
+            right: 2.15vw;
+            top: 18.2vh;
+            display: flex;
+            gap: 12px;
+            color: #b4b4b4;
+            font-size: 11px;
+            align-items: center;
+        }
+
+        .counter {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .counter input {
+            width: 65px;
+            height: 40px;
+            padding: 0;
+            background: transparent;
+            border: 0;
+            border-bottom: 1px solid transparent;
+            color: inherit;
+            font-family: inherit;
+            font-size: 24px;
+            text-align: center;
+            appearance: textfield;
+        }
+
+        .counter input:hover,
+        .counter input:focus {
+            border-bottom-color: currentColor;
+            outline: 0;
+        }
+
+        .counter input::-webkit-inner-spin-button {
+            appearance: none;
+        }
+
+        .key {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: #ff002b;
+        }
+
+        .key.animal {
+            background: #00ffe4;
+        }
+
+        .reset {
+            background: none;
+            color: inherit;
+            border: 0;
+            padding: 6px;
+            cursor: pointer;
+            font-size: 30px;
+        }
+
+        @keyframes appear {
+            from {
+                opacity: 0;
+                scale: .88;
+            }
+            to {
+                opacity: 1;
+                scale: 1;
+            }
+        }
+
+        @media (max-width: 600px) {
+            main {
+                --bar: 4vh;
+            }
+
+            .portrait {
+                width: 22vw;
+                height: 22vw;
+            }
+
+            .caption {
+                font-size: clamp(10px, 2.7vw, 16px);
+                white-space: normal;
+                left: 3%;
+                width: 94%;
+            }
+
+            .panel[data-position="top"] .caption {
+                top: 85%;
+            }
+
+            .ratio {
+                grid-template-columns: repeat(4, 4.5vw);
+                top: 3vh;
+                right: 4vw;
+            }
+
+            .dot {
+                width: 4.5vw;
+                height: 4.5vw;
+            }
+
+            .controls {
+                top: 14vh;
+                right: 4vw;
+                gap: 6px;
+                font-size: 10px;
+            }
+        }
+
+        /* 동점일 때의 배경과 철창 색상 */
+        main.is-equal .panel {
+            background: #ff1e00;
+            color: whitesmoke;
+        }
+
+        main.is-equal .divider {
+            background: repeating-linear-gradient(
+                90deg,
+                #2b80ff 0 2.76vw,
+                #feffd8 2.76vw 10.81vw
+            );
+        }
+
+        main.is-equal .controls {
+            color: #2c2c2c;
+        }
+
+        .ratio.is-dragging {
+            cursor: grabbing;
+        }
+
+        .ratio .dot {
+            pointer-events: none;
+        }
+
+        /* 모서리 드래그 이동 */
+        .corner-navigation {
+            position: absolute;
+            inset: 0;
+            z-index: 7;
+            pointer-events: none;
+            visibility: hidden;
+        }
+
+        main.is-navigating .corner-navigation {
+            visibility: visible;
+        }
+
+        .corner-link {
+            position: absolute;
+            display: grid;
+            place-items: center;
+            width: clamp(90px, 23%, 180px);
+            height: clamp(90px, 20%, 150px);
+            padding: 12px;
+            border: 1px dashed #feffd8;
+            background: rgb(44 44 44 / 80%);
+            color: #feffd8;
+            text-align: center;
+            text-decoration: none;
+            font-size: clamp(11px, 1vw, 15px);
+            transition: background-color 0.15s ease;
+        }
+
+        .corner-link[data-corner="top-left"] {
+            top: 0;
+            left: 0;
+        }
+
+        .corner-link[data-corner="top-right"] {
+            top: 0;
+            right: 0;
+        }
+
+        .corner-link[data-corner="bottom-left"] {
+            bottom: 0;
+            left: 0;
+        }
+
+        .corner-link[data-corner="bottom-right"] {
+            bottom: 0;
+            right: 0;
+        }
+
+        .corner-link.is-target {
+            border-style: solid;
+            background: #2b80ff;
+            color: #ffffff;
+        }
+        .home-link {
+            position: absolute;
+            z-index: 10;
+            top: 3.5%;
+            left: 50%;
+            transform: translateX(-50%);
+
+            margin: 0;
+            padding: 0;
+            border: none;
+            background: transparent;
+            color: #fff;
+
+            font-family: 'Courier New', monospace;
+            font-size: clamp(14px, 1.15vw, 22px);
+            font-weight: 400;
+            line-height: normal;
+            letter-spacing: .06em;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .home-link:hover {
+            color: #fff;
+            background: transparent;
+            opacity: .65;
+        }
+
+        .home-link:focus-visible {
+            outline: 1px dashed currentColor;
+            outline-offset: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <a class="home-link" href="../home/home.html" aria-label="홈으로 돌아가기">
+            Zoo | ooZ
+        </a>
+        <div class="flip-stage">
+            <button class="panel" id="human" data-position="bottom">
+                <div class="portraits"></div>
+                <p class="caption">
+                    Humans gather around anything that moves.
+                </p>
+            </button>
+
+            <button class="panel" id="animal" data-position="top">
+                <div class="portraits"></div>
+                <p class="caption">
+                    H#%ans ga&amp;*er ar@!nd an?th$ng th^t m&lt;&gt;es.
+                </p>
+            </button>
+        </div>
+
+        <div class="divider"></div>
+
+        <div
+            class="ratio"
+            title="모서리로 드래그하여 페이지 이동"
+        ></div>
+
+        <!-- 현재 파일: zoo/index2.html -->
+        <nav class="corner-navigation">
+            <a
+                class="corner-link"
+                data-corner="top-left"
+                href="../lab/index.html"
+            >LAB ↖</a>
+
+            <a
+                class="corner-link"
+                data-corner="top-right"
+                href="../zoo/index2.html"
+            >ZOO ↗</a>
+
+            <a
+                class="corner-link"
+                data-corner="bottom-left"
+                href="../flip/index3.html"
+            >FLIP CARD ↙</a>
+
+            <a
+                class="corner-link"
+                data-corner="bottom-right"
+                href="../cube/about.html"
+            >CUBE ↘</a>
+        </nav>
+
+        <div class="controls">
+            <label class="counter">
+                <span class="key"></span>
+                <input
+                    id="human-count"
+                    type="number"
+                    min="0"
+                    max="99"
+                    value="1"
+                >
+            </label>
+
+            <label class="counter">
+                <span class="key animal"></span>
+                <input
+                    id="animal-count"
+                    type="number"
+                    min="0"
+                    max="99"
+                    value="0"
+                >
+            </label>
+
+            <button class="reset" title="초기화">↺</button>
+        </div>
+    </main>
+
+    <script>
+        /* 이미지: index2.html과 같은 zoo 폴더에 배치 */
+        const images = {
+            human: 'human.png',
+            animal: 'animal.png'
+        };
+
+        const initial = {
+            human: 1,
+            animal: 0
+        };
+
+        let counts = { ...initial };
+        let topSpecies = 'animal';
+        let flipping = false;
+
+        const stage = document.querySelector('.flip-stage');
+
+        const positions = {
+            human: [
+                [0.596, 0.214],
+                [0.425, 0.344]
+            ],
+            animal: [
+                [0.243, 0.155],
+                [0.370, 0.155],
+                [0.554, 0.155],
+                [0.689, 0.212],
+                [0.801, 0.270],
+                [0.153, 0.270],
+                [0.185, 0.470],
+                [0.314, 0.436],
+                [0.455, 0.304],
+                [0.518, 0.490],
+                [0.617, 0.400],
+                [0.734, 0.470]
+            ]
+        };
+
+        const panels = {
+            human: document.querySelector('#human'),
+            animal: document.querySelector('#animal')
+        };
+
+        /* 하단 대상별 문장 세트 */
+        const captionSets = {
+            human: [
+                {
+                    human: 'Do not feed the animals.',
+                    animal: 'D# n%t f&&d th& @n!m@l$.'
+                },
+                {
+                    human: 'No flash photography.',
+                    animal: 'N# fl@$h ph#t#gr@phy.'
+                },
+                {
+                    human: 'The animals are resting.',
+                    animal: 'Th& @n!m@l$ @r& r&$t!ng.'
+                },
+                {
+                    human: 'Stay behind the barrier.',
+                    animal: 'St@y b&h!nd th& b@rr!&r.'
+                }
+            ],
+
+            animal: [
+                {
+                    human: 'Do not feed the humans.',
+                    animal: 'D# n%t f&&d th& h%m@n$.'
+                },
+                {
+                    human: 'The humans are resting.',
+                    animal: 'Th& h%m@n$ @r& r&$t!ng.'
+                },
+                {
+                    human: 'Keep your distance from the humans.',
+                    animal: 'K&&p y#%r d!$t@nc& fr#m th& h%m@n$.'
+                },
+                {
+                    human: 'Humans sometimes tap on the glass to attract attention.',
+                    animal: 'H%m@n$ $#m&t!m&$ t@p #n th& gl@$$ t# @ttr@ct @tt&nt!#n.'
+                }
+            ]
+        };
+
+        const lastCaptionSet = {
+            human: -1,
+            animal: -1
+        };
+
+        function addPortrait(species, x, y) {
+            const img = document.createElement('img');
+
+            img.src = images[species];
+            img.alt = '';
+            img.draggable = false;
+            img.className = 'portrait';
+
+            if (x !== undefined && y !== undefined) {
+                img.dataset.x = x;
+                img.dataset.y = y;
+                img.style.translate = '-50% -50%';
+            }
+
+            panels[species]
+                .querySelector('.portraits')
+                .append(img);
+        }
+
+        function layout() {
+            const mobile = innerWidth <= 600;
+
+            for (const species of ['human', 'animal']) {
+                panels[species].querySelectorAll('img')
+                    .forEach((img, i) => {
+                        if (img.dataset.x !== undefined) {
+                            img.style.left =
+                                `${img.dataset.x * 100}%`;
+
+                            img.style.top =
+                                `${img.dataset.y * 100}%`;
+
+                            return;
+                        }
+
+                        let position;
+
+                        if (mobile) {
+                            position = [
+                                0.04 + ((i * 37) % 71) / 100,
+                                0.20 + ((i * 19) % 42) / 100
+                            ];
+                        } else {
+                            position = positions[species][i] || [
+                                0.12 + ((i * 137) % 700) / 1000,
+                                0.16 + ((i * 83) % 410) / 1000
+                            ];
+                        }
+
+                        img.style.left = `${position[0] * 100}%`;
+                        img.style.top = `${position[1] * 100}%`;
+                    });
+            }
+        }
+
+        let captionsWereEqual = false;
+
+        function showEqualCaptions() {
+            const equalTexts = {
+                human: 'You are being watched.',
+                animal: 'Y#% @r& b&!ng w@tch&d.'
+            };
+
+            document.querySelectorAll('.caption')
+                .forEach((caption) => {
+                    cancelAnimationFrame(caption.scrambleFrame);
+
+                    const species = caption.closest('.panel').id;
+                    caption.textContent = equalTexts[species];
+                });
+        }
+
+        function scrambleCaptions() {
+            if (counts.human === counts.animal) {
+                showEqualCaptions();
+                return;
+            }
+
+            const symbols = '!@#$%^&*<>?/{}[]0123456789';
+
+            const bottomSpecies = topSpecies === 'human'
+                ? 'animal'
+                : 'human';
+
+            const sets = captionSets[bottomSpecies];
+
+            const available = sets
+                .map((_, index) => index)
+                .filter(
+                    index => index !== lastCaptionSet[bottomSpecies]
+                );
+
+            const selected = available[
+                Math.floor(Math.random() * available.length)
+            ];
+
+            lastCaptionSet[bottomSpecies] = selected;
+            const set = sets[selected];
+
+            document.querySelectorAll('.caption')
+                .forEach((caption) => {
+                    const species = caption.closest('.panel').id;
+                    const text = set[species];
+
+                    const duration = 900;
+                    const interval = 80;
+                    const start = performance.now();
+                    let lastUpdate = -Infinity;
+
+                    cancelAnimationFrame(caption.scrambleFrame);
+
+                    function update(now) {
+                        const progress = Math.min(
+                            (now - start) / duration,
+                            1
+                        );
+
+                        if (progress >= 1) {
+                            caption.textContent = text;
+                            return;
+                        }
+
+                        if (now - lastUpdate >= interval) {
+                            lastUpdate = now;
+
+                            const fixed = Math.floor(
+                                progress * text.length
+                            );
+
+                            caption.textContent = Array.from(
+                                text,
+                                (letter, index) => {
+                                    if (letter === ' ' || index < fixed) {
+                                        return letter;
+                                    }
+
+                                    return symbols[
+                                        Math.floor(
+                                            Math.random() *
+                                            symbols.length
+                                        )
+                                    ];
+                                }
+                            ).join('');
+                        }
+
+                        caption.scrambleFrame =
+                            requestAnimationFrame(update);
+                    }
+
+                    caption.scrambleFrame =
+                        requestAnimationFrame(update);
+                });
+        }
+
+        async function flipPanels(nextTop) {
+            flipping = true;
+
+            const timing = {
+                duration: 450,
+                easing: 'ease-in-out',
+                fill: 'forwards'
+            };
+
+            const close = stage.animate(
+                [
+                    { transform: 'rotateX(0deg)' },
+                    { transform: 'rotateX(90deg)' }
+                ],
+                timing
+            );
+
+            await close.finished;
+
+            topSpecies = nextTop;
+            render();
+            scrambleCaptions();
+
+            const open = stage.animate(
+                [
+                    { transform: 'rotateX(-90deg)' },
+                    { transform: 'rotateX(0deg)' }
+                ],
+                timing
+            );
+
+            close.cancel();
+
+            await open.finished;
+
+            open.cancel();
+            flipping = false;
+            render();
+        }
+
+        function render() {
+            const nextTop = counts.human === counts.animal
+                ? topSpecies
+                : counts.human < counts.animal
+                    ? 'human'
+                    : 'animal';
+
+            if (nextTop !== topSpecies && !flipping) {
+                flipPanels(nextTop);
+            }
+
+            for (const species of ['human', 'animal']) {
+                const panel = panels[species];
+                const layer = panel.querySelector('.portraits');
+
+                panel.dataset.position = species === topSpecies
+                    ? 'top'
+                    : 'bottom';
+
+                while (layer.children.length > counts[species]) {
+                    layer.lastChild.remove();
+                }
+
+                while (layer.children.length < counts[species]) {
+                    addPortrait(species);
+                }
+
+                document.querySelector(
+                    `#${species}-count`
+                ).value = counts[species];
+            }
+
+            const total = counts.human + counts.animal;
+
+            const humanDots = total
+                ? Math.round((counts.human / total) * 16)
+                : 0;
+
+            const dots = Array.from({ length: 16 }, (_, i) => {
+                const dot = document.createElement('span');
+
+                dot.className = i >= humanDots
+                    ? 'dot animal'
+                    : 'dot';
+
+                if (!total) {
+                    dot.style.opacity = '0.2';
+                }
+
+                return dot;
+            });
+
+            document.querySelector('.ratio')
+                .replaceChildren(...dots);
+
+            layout();
+
+            const equal = counts.human === counts.animal;
+
+            document.querySelector('main')
+                .classList.toggle('is-equal', equal);
+
+            if (equal) {
+                showEqualCaptions();
+            } else if (captionsWereEqual && !flipping) {
+                scrambleCaptions();
+            }
+
+            captionsWereEqual = equal;
+        }
+
+        for (const species of ['human', 'animal']) {
+            panels[species].addEventListener('click', (event) => {
+                if (flipping || counts[species] >= 99) return;
+
+                const layer = panels[species]
+                    .querySelector('.portraits');
+
+                const rect = layer.getBoundingClientRect();
+
+                let x = (event.clientX - rect.left) / rect.width;
+                let y = (event.clientY - rect.top) / rect.height;
+
+                if (panels[species].dataset.position === 'top') {
+                    x = 1 - x;
+                    y = 1 - y;
+                }
+
+                addPortrait(species, x, y);
+                counts[species] += 1;
+                render();
+            });
+
+            document.querySelector(`#${species}-count`)
+                .addEventListener('change', (event) => {
+                    const value = Number(event.target.value);
+
+                    if (Number.isFinite(value)) {
+                        counts[species] = Math.max(
+                            0,
+                            Math.min(99, Math.round(value))
+                        );
+                    }
+
+                    render();
+                });
+        }
+
+        document.querySelector('.reset')
+            .addEventListener('click', () => {
+                if (flipping) return;
+
+                counts = { ...initial };
+                render();
+
+                if (!flipping) {
+                    scrambleCaptions();
+                }
+            });
+
+        /* 모서리 드래그 페이지 이동 */
+        function setupCornerNavigation() {
+            const main = document.querySelector('main');
+            const ratio = document.querySelector('.ratio');
+            const links = Array.from(
+                document.querySelectorAll('.corner-link')
+            );
+
+            let drag = null;
+
+            function findCorner(x, y) {
+                const bounds = main.getBoundingClientRect();
+
+                const width = Math.min(
+                    180,
+                    Math.max(90, bounds.width * 0.23)
+                );
+
+                const height = Math.min(
+                    150,
+                    Math.max(90, bounds.height * 0.2)
+                );
+
+                const left =
+                    x >= bounds.left &&
+                    x <= bounds.left + width;
+
+                const right =
+                    x <= bounds.right &&
+                    x >= bounds.right - width;
+
+                const top =
+                    y >= bounds.top &&
+                    y <= bounds.top + height;
+
+                const bottom =
+                    y <= bounds.bottom &&
+                    y >= bounds.bottom - height;
+
+                if (left && top) return 'top-left';
+                if (right && top) return 'top-right';
+                if (left && bottom) return 'bottom-left';
+                if (right && bottom) return 'bottom-right';
+
+                return null;
+            }
+
+            function highlight(corner) {
+                links.forEach((link) => {
+                    link.classList.toggle(
+                        'is-target',
+                        link.dataset.corner === corner
+                    );
+                });
+            }
+
+            function restore() {
+                ratio.style.removeProperty('left');
+                ratio.style.removeProperty('top');
+                ratio.style.removeProperty('right');
+                main.classList.remove('is-navigating');
+                ratio.classList.remove('is-dragging');
+                highlight(null);
+            }
+
+            ratio.addEventListener('pointerdown', (event) => {
+                if (!event.isPrimary || event.button !== 0) return;
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                const bounds = ratio.getBoundingClientRect();
+
+                drag = {
+                    pointerId: event.pointerId,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    offsetX: event.clientX - bounds.left,
+                    offsetY: event.clientY - bounds.top,
+                    moved: false
+                };
+
+                ratio.setPointerCapture(event.pointerId);
+            });
+
+            ratio.addEventListener('pointermove', (event) => {
+                if (!drag || drag.pointerId !== event.pointerId) return;
+
+                event.preventDefault();
+
+                if (!drag.moved) {
+                    const distance = Math.hypot(
+                        event.clientX - drag.startX,
+                        event.clientY - drag.startY
+                    );
+
+                    if (distance < 7) return;
+
+                    drag.moved = true;
+                    main.classList.add('is-navigating');
+                    ratio.classList.add('is-dragging');
+                }
+
+                const bounds = main.getBoundingClientRect();
+                const graphic = ratio.getBoundingClientRect();
+
+                const x = Math.max(
+                    0,
+                    Math.min(
+                        bounds.width - graphic.width,
+                        event.clientX - bounds.left - drag.offsetX
+                    )
+                );
+
+                const y = Math.max(
+                    0,
+                    Math.min(
+                        bounds.height - graphic.height,
+                        event.clientY - bounds.top - drag.offsetY
+                    )
+                );
+
+                ratio.style.left = `${x}px`;
+                ratio.style.top = `${y}px`;
+                ratio.style.right = 'auto';
+
+                highlight(findCorner(event.clientX, event.clientY));
+            });
+
+            function finish(event, cancelled = false) {
+                if (!drag || drag.pointerId !== event.pointerId) return;
+
+                const corner = !cancelled && drag.moved
+                    ? findCorner(event.clientX, event.clientY)
+                    : null;
+
+                const target = links.find(
+                    (link) => link.dataset.corner === corner
+                );
+
+                const pointerId = drag.pointerId;
+                drag = null;
+
+                if (ratio.hasPointerCapture(pointerId)) {
+                    ratio.releasePointerCapture(pointerId);
+                }
+
+                restore();
+
+                if (target) {
+                    window.location.assign(target.href);
+                }
+            }
+
+            ratio.addEventListener('pointerup', (event) => {
+                finish(event);
+            });
+
+            ratio.addEventListener('pointercancel', (event) => {
+                finish(event, true);
+            });
+
+            ratio.addEventListener('lostpointercapture', (event) => {
+                finish(event, true);
+            });
+
+            ratio.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+            });
+
+            ratio.addEventListener('dragstart', (event) => {
+                event.preventDefault();
+            });
+
+            window.addEventListener('resize', () => {
+                if (drag) {
+                    finish({ pointerId: drag.pointerId }, true);
+                }
+            });
+
+            window.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && drag) {
+                    finish({ pointerId: drag.pointerId }, true);
+                }
+            });
+        }
+
+        setupCornerNavigation();
+        window.addEventListener('resize', layout);
+        render();
+        scrambleCaptions();
+    </script>
+</body>
+</html>
