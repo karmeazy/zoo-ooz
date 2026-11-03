@@ -1,0 +1,1212 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#292521">
+    <title>Zoo | ooZ — ENTRANCE</title>
+    <link rel="icon" type="image/png" href="../common/favicon.png">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            background: #292521;
+            color: #F5F5F5;
+            font-family: 'Courier New', monospace;
+        }
+
+        main {
+            position: relative;
+            width: 100%;
+            height: 100dvh;
+            overflow: hidden;
+            isolation: isolate;
+            background: #f4f4f4;
+        }
+
+        /* 배경 사진 */
+        .background {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            z-index: -2;
+            opacity: 1;
+            transition: opacity 350ms ease;
+            pointer-events: none;
+        }
+
+        .background img {
+            display: block;
+            width: 50%;
+            height: 100%;
+            object-fit: cover;
+            object-position: 50% 50%;
+        }
+
+        .background::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgb(0 0 0 / 8%);
+        }
+
+        /* 발자국 */
+        #footprints {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* 연결선 */
+        .map-lines {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .map-lines path {
+            fill: none;
+            stroke: white;
+            stroke-width: 1.3;
+            vector-effect: non-scaling-stroke;
+            transition: stroke 350ms ease;
+        }
+
+        /* 모서리 메뉴 */
+        .portal {
+            position: absolute;
+            z-index: 5;
+            display: grid;
+            place-items: center;
+            width: clamp(76px, 7.1vw, 146px);
+            aspect-ratio: 1;
+            border: 1px solid white;
+            border-radius: 50%;
+            background: rgb(35 35 35 / 57%);
+            color: white;
+            font-size: clamp(14px, 1.25vw, 25px);
+            line-height: 1.25;
+            text-align: center;
+            text-decoration: none;
+            transform: translate(-50%, -50%);
+            transition:
+                background .18s,
+                color .18s,
+                border-color .18s;
+            touch-action: manipulation;
+        }
+
+        .portal[data-corner="top-left"] {
+            left: 6.65%;
+            top: 11.45%;
+        }
+
+        .portal[data-corner="top-right"] {
+            left: 93.35%;
+            top: 11.45%;
+        }
+
+        .portal[data-corner="bottom-left"] {
+            left: 6.65%;
+            top: 88.55%;
+        }
+
+        .portal[data-corner="bottom-right"] {
+            left: 93.35%;
+            top: 88.55%;
+        }
+
+        .portal:hover,
+        .portal:focus-visible,
+        .portal.is-target {
+            color: #111;
+            background: white;
+            outline: none;
+        }
+
+        main.is-dragging .portal {
+            border-style: dashed;
+        }
+
+        main.is-dragging .portal.is-target {
+            border-style: solid;
+            background: #00ffe4;
+            border-color: #00ffe4;
+        }
+
+        /* 중앙 비율 그래픽 */
+        .ratio {
+            position: absolute;
+            z-index: 6;
+            left: 50%;
+            top: 50%;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            width: clamp(92px, 7.15vw, 148px);
+            aspect-ratio: 1;
+            transform: translate(-50%, -50%);
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .ratio.is-dragging {
+            cursor: grabbing;
+        }
+
+        .ratio:focus-visible {
+            outline: 1px dashed white;
+            outline-offset: 9px;
+        }
+
+        .dot {
+            border-radius: 50%;
+            border: clamp(2px, .25vw, 5px) solid #ff00db;
+            background: #ff002b;
+            pointer-events: none;
+        }
+
+        .dot.animal {
+            background: #00ffe4;
+            border-color: #00ff41;
+        }
+
+        .drag-hint {
+            position: absolute;
+            z-index: 4;
+            left: 50%;
+            top: calc(
+                50% + clamp(46px, 3.575vw, 74px) + 14px
+            );
+            margin: 0;
+            transform: translateX(-50%);
+            text-align: center;
+            font-size: clamp(9px, .65vw, 12px);
+            letter-spacing: .08em;
+            pointer-events: none;
+            transition: opacity .15s, color .35s;
+        }
+
+        main.is-dragging .drag-hint {
+            opacity: 0;
+        }
+
+        .project-name {
+            position: absolute;
+            top: 3.5%;
+            left: 50%;
+            z-index: 3;
+            transform: translateX(-50%);
+            margin: 0;
+            font-size: clamp(14px, 1.15vw, 22px);
+            font-weight: 400;
+            letter-spacing: .06em;
+            transition: color 350ms ease;
+        }
+
+        /* 하단 프로젝트 메시지 */
+        .statement {
+            position: absolute;
+            z-index: 3;
+            left: 15%;
+            right: 15%;
+            bottom: 14%;
+            margin: 0;
+            text-align: center;
+            font-size: clamp(10px, .85vw, 17px);
+            line-height: 1.4;
+            letter-spacing: .025em;
+            pointer-events: none;
+            transition: color 350ms ease;
+        }
+
+        .statement span {
+            display: block;
+        }
+
+        /* 모드 전환 버튼 */
+        .view-toggle {
+            position: absolute;
+            z-index: 8;
+            top: 7%;
+            left: 50%;
+            right: auto;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 8px 12px;
+            margin: 0;
+            border: 1px solid white;
+            border-radius: 0;
+            background: rgb(35 35 35 / 57%);
+            color: white;
+            font-family: inherit;
+            font-size: clamp(10px, .7vw, 14px);
+            letter-spacing: .03em;
+            cursor: pointer;
+            transition:
+                background .2s,
+                color .2s,
+                border-color .2s;
+        }
+
+        .view-dot {
+            width: 9px;
+            height: 9px;
+            border: 1px solid currentColor;
+            border-radius: 50%;
+            background: transparent;
+        }
+
+        .view-toggle:hover {
+            background: white;
+            color: #222;
+        }
+
+        .view-toggle:focus-visible {
+            outline: 2px solid #ff00db;
+            outline-offset: 4px;
+        }
+
+        /* 챕터 설명 */
+        .chapter-description {
+            position: absolute;
+            z-index: 4;
+            width: min(25vw, 440px);
+            margin: 0;
+            padding: 10px 14px;
+            background: #f4f4f4;
+            color: #222;
+            font-size: clamp(11px, .8vw, 16px);
+            line-height: 1.65;
+            word-break: keep-all;
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            transition:
+                opacity 300ms ease,
+                visibility 300ms ease;
+            border: 1px solid #000;
+        }
+
+        .chapter-number {
+            display: block;
+            margin-bottom: 6px;
+            color: #777;
+            font-size: clamp(9px, .6vw, 12px);
+            letter-spacing: .07em;
+        }
+
+        .chapter-description.top-left {
+            left: calc(
+                6.65% + clamp(38px, 3.55vw, 73px) + 18px
+            );
+            top: 7%;
+        }
+
+        .chapter-description.top-right {
+            right: calc(
+                6.65% + clamp(38px, 3.55vw, 73px) + 18px
+            );
+            top: 7%;
+            text-align: right;
+        }
+
+        .chapter-description.bottom-left {
+            left: calc(
+                6.65% + clamp(38px, 3.55vw, 73px) + 18px
+            );
+            bottom: 7%;
+        }
+
+        .chapter-description.bottom-right {
+            right: calc(
+                6.65% + clamp(38px, 3.55vw, 73px) + 18px
+            );
+            bottom: 7%;
+            text-align: right;
+        }
+
+        /* 설명 모드 */
+        main.is-info-view .background {
+            opacity: 0;
+        }
+
+        main.is-info-view #footprints {
+            filter: brightness(0);
+        }
+
+        main.is-info-view .project-name,
+        main.is-info-view .statement,
+        main.is-info-view .drag-hint {
+            color: #222;
+        }
+
+        main.is-info-view .map-lines path {
+            stroke: #aaa;
+        }
+
+        main.is-info-view .portal {
+            border-color: #333;
+            background: #f4f4f4;
+            color: #222;
+        }
+
+        main.is-info-view .portal:hover,
+        main.is-info-view .portal:focus-visible,
+        main.is-info-view .portal.is-target {
+            background: #222;
+            color: white;
+        }
+
+        main.is-info-view.is-dragging .portal.is-target {
+            background: #00ffe4;
+            border-color: #00ffe4;
+            color: #111;
+        }
+
+        main.is-info-view .ratio:focus-visible {
+            outline-color: #222;
+        }
+
+        main.is-info-view .chapter-description {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        main.is-info-view .view-toggle {
+            border-color: #333;
+            background: #f4f4f4;
+            color: #222;
+        }
+
+        main.is-info-view .view-dot {
+            background: currentColor;
+        }
+
+        main.is-info-view .view-toggle:hover {
+            background: #222;
+            color: white;
+        }
+
+        /* 설명 모드에서만 하단 핵심 메시지 숨김 */
+        main.is-info-view .statement {
+            display: none;
+        }
+
+        .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            clip-path: inset(50%);
+            overflow: hidden;
+        }
+
+        @media (max-width: 650px) {
+            .portal {
+                width: 70px;
+                font-size: 13px;
+            }
+
+            .portal[data-corner="top-left"],
+            .portal[data-corner="bottom-left"] {
+                left: 13%;
+            }
+
+            .portal[data-corner="top-right"],
+            .portal[data-corner="bottom-right"] {
+                left: 87%;
+            }
+
+            .portal[data-corner="top-left"],
+            .portal[data-corner="top-right"] {
+                top: 10%;
+            }
+
+            .portal[data-corner="bottom-left"],
+            .portal[data-corner="bottom-right"] {
+                top: 90%;
+            }
+
+            .statement {
+                left: 10%;
+                right: 10%;
+                bottom: 19%;
+                font-size: 11px;
+            }
+
+            .statement span {
+                display: inline;
+            }
+
+            .statement .question {
+                display: block;
+                margin-top: 9px;
+            }
+
+            .background img {
+                object-position: 50% 50%;
+            }
+
+            .view-toggle {
+                top: 3%;
+                right: 4%;
+                padding: 6px 8px;
+                font-size: 9px;
+                gap: 6px;
+            }
+
+            .chapter-description {
+                width: 38%;
+                padding: 8px;
+                font-size: 10px;
+            }
+
+            .chapter-description.top-left {
+                left: 7%;
+                top: 18%;
+            }
+
+            .chapter-description.top-right {
+                right: 7%;
+                top: 18%;
+            }
+
+            .chapter-description.bottom-left {
+                left: 7%;
+                bottom: 29%;
+            }
+
+            .chapter-description.bottom-right {
+                right: 7%;
+                bottom: 29%;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .portal,
+            .drag-hint,
+            .background,
+            .map-lines path,
+            .project-name,
+            .statement,
+            .view-toggle,
+            .chapter-description {
+                transition: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <div class="background" aria-hidden="true">
+            <img src="main_animal.png" alt="" draggable="false">
+            <img src="main_human.png" alt="" draggable="false">
+        </div>
+
+        <canvas id="footprints" aria-hidden="true"></canvas>
+
+        <svg class="map-lines" aria-hidden="true">
+            <path id="boundary"></path>
+            <path id="connections"></path>
+        </svg>
+
+        <h1 class="project-name">Zoo | ooZ</h1>
+
+        <!-- 이미지 / 설명 화면 전환 -->
+        <button
+            class="view-toggle"
+            type="button"
+            aria-pressed="false"
+            aria-label="설명 모드로 전환"
+        >
+            <span class="view-dot" aria-hidden="true"></span>
+            <span class="view-label">INFO VIEW</span>
+        </button>
+
+        <!-- 네 페이지 이동 -->
+        <nav aria-label="관람 구역">
+            <a
+                class="portal"
+                data-corner="top-left"
+                href="../lab/index.html"
+            >LAB</a>
+
+            <a
+                class="portal"
+                data-corner="top-right"
+                href="../zoo/index2.html"
+            >ZOO</a>
+
+            <a
+                class="portal"
+                data-corner="bottom-left"
+                href="../flip/index3.html"
+            >FLIP<br>CARD</a>
+
+            <a
+                class="portal"
+                data-corner="bottom-right"
+                href="../cube/about.html"
+            >CUBE</a>
+        </nav>
+
+        <!-- 챕터 설명: 이 부분에서 텍스트 수정 -->
+        <p class="chapter-description top-left">
+            <span class="chapter-number">01 / LAB</span>
+            인간을 관찰하고 특징을 살펴봅니다.<br>
+            대상을 설명하는 시선은 누구의 것일까요?
+        </p>
+
+        <p class="chapter-description top-right">
+            <span class="chapter-number">02 / ZOO</span>
+            인간과 동물의 수를 바꿔봅니다.<br>
+            숫자가 바뀌면 관람자의 자리도 뒤집힙니다.
+        </p>
+
+        <p class="chapter-description bottom-left">
+            <span class="chapter-number">03 / FLIP CARD</span>
+            얼굴의 조각을 뒤집어봅니다.<br>
+            인간과 동물을 구분하던 경계가 섞입니다.
+        </p>
+
+        <p class="chapter-description bottom-right">
+            <span class="chapter-number">04 / CUBE</span>
+            몸과 얼굴을 바꾸고 큐브를 펼쳐봅니다.<br>
+            하나의 존재를 정하는 기준은 무엇일까요?
+        </p>
+
+        <div
+            class="ratio"
+            role="group"
+            tabindex="0"
+            aria-label="네 모서리로 드래그하여 페이지 이동. 키보드로는 Tab 키로 각 메뉴를 선택하세요."
+        ></div>
+
+        <p class="drag-hint">DRAG TO EXPLORE</p>
+
+        <p class="statement">
+            <span>
+                We watch, classify, and explain other living beings,
+                as if we stand outside their gaze.
+            </span>
+            <span>
+                Now that gaze turns back on us,
+                questioning the place we take for granted.
+            </span>
+            <span class="question">
+                “Are you still the observer?”
+            </span>
+        </p>
+
+        <p class="sr-only">
+            왼쪽에서는 사람 발자국, 오른쪽에서는 원숭이 발자국이
+            커서를 향해 다가옵니다.
+            발소리는 첫 클릭 또는 키 입력 이후 재생됩니다.
+        </p>
+    </main>
+
+    <script>
+        const main = document.querySelector('main');
+        const ratio = document.querySelector('.ratio');
+        const portals = [
+            ...document.querySelectorAll('.portal')
+        ];
+
+        const reducedMotion = matchMedia(
+            '(prefers-reduced-motion: reduce)'
+        );
+
+        /* 비율 그래픽: 총 16개 */
+        const humanDots = 10;
+
+        for (let i = 0; i < 16; i++) {
+            const dot = document.createElement('span');
+
+            dot.className = i < humanDots
+                ? 'dot'
+                : 'dot animal';
+
+            ratio.append(dot);
+        }
+
+        /* 이미지 모드 ↔ 설명 모드 */
+        const viewToggle = document.querySelector('.view-toggle');
+
+        viewToggle.addEventListener('click', () => {
+            const infoView = main.classList.toggle('is-info-view');
+
+            viewToggle.setAttribute(
+                'aria-pressed',
+                String(infoView)
+            );
+
+            viewToggle.setAttribute(
+                'aria-label',
+                infoView
+                    ? '이미지 모드로 전환'
+                    : '설명 모드로 전환'
+            );
+
+            viewToggle.querySelector('.view-label').textContent =
+                infoView ? 'IMAGE VIEW' : 'INFO VIEW';
+        });
+
+        /* 발소리 */
+        const soundVolume = 0.5;
+
+        const sounds = Object.fromEntries(
+            ['human', 'monkey'].map(kind => [
+                kind,
+                Array.from({ length: 4 }, () => {
+                    const audio = new Audio(`${kind}-step.mp3`);
+
+                    audio.preload = 'auto';
+                    audio.volume = soundVolume;
+
+                    return audio;
+                })
+            ])
+        );
+
+        const soundIndex = {
+            human: 0,
+            monkey: 0
+        };
+
+        let audioReady = false;
+
+        function unlockAudio(event) {
+            if (!event.isTrusted || audioReady) return;
+
+            audioReady = true;
+
+            Object.values(sounds).flat().forEach(audio => {
+                audio.volume = 0;
+
+                audio.play().then(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    audio.volume = soundVolume;
+                }).catch(() => {
+                    audio.volume = soundVolume;
+                    audioReady = false;
+                });
+            });
+        }
+
+        document.addEventListener(
+            'pointerdown',
+            unlockAudio,
+            true
+        );
+
+        document.addEventListener(
+            'keydown',
+            unlockAudio,
+            true
+        );
+
+        function playStep(kind) {
+            if (!audioReady || document.hidden) return;
+
+            const audio = sounds[kind][soundIndex[kind]++ % 4];
+
+            audio.currentTime = 0;
+            audio.volume = soundVolume;
+            audio.play().catch(() => {});
+        }
+
+        /* 커서 쪽으로 걸어오는 발자국 */
+        const canvas = document.querySelector('#footprints');
+        const ctx = canvas.getContext('2d');
+
+        const footprintFiles = {
+            human: ['human_left.svg', 'human_right.svg'],
+            monkey: ['monkey_left.svg', 'monkey_right.svg']
+        };
+
+        const colors = {
+            human: '#b600ff',
+            monkey: '#00ffe4'
+        };
+
+        const settings = {
+            stepInterval: 380,
+            stepLength: 70,
+            stopDistance: 78,
+            footprintHeight: 112,
+            footprintLife: 2000
+        };
+
+        const pictures = {
+            human: [],
+            monkey: []
+        };
+
+        const prints = [];
+
+        let width = 0;
+        let height = 0;
+
+        let target = {
+            x: innerWidth / 2,
+            y: innerHeight / 2
+        };
+
+        let pointerInside = true;
+        let assetsReady = false;
+        let drag = null;
+
+        const walkers = [
+            {
+                kind: 'human',
+                x: 0,
+                y: 0,
+                heading: 0,
+                side: 0,
+                next: 0
+            },
+            {
+                kind: 'monkey',
+                x: 0,
+                y: 0,
+                heading: Math.PI,
+                side: 0,
+                next: 260
+            }
+        ];
+
+        async function loadFootprints() {
+            await Promise.all(
+                Object.entries(footprintFiles).flatMap(
+                    ([kind, files]) => files.map(
+                        (file, side) => new Promise(resolve => {
+                            const img = new Image();
+
+                            img.onload = () => {
+                                const stamp =
+                                    document.createElement('canvas');
+
+                                stamp.width = 256;
+                                stamp.height = 512;
+
+                                const c = stamp.getContext('2d');
+
+                                c.drawImage(img, 0, 0, 256, 512);
+                                c.globalCompositeOperation = 'source-in';
+                                c.fillStyle = colors[kind];
+                                c.fillRect(0, 0, 256, 512);
+
+                                pictures[kind][side] = stamp;
+                                resolve();
+                            };
+
+                            img.onerror = () => {
+                                console.warn(
+                                    '발자국 파일을 확인하세요:',
+                                    file
+                                );
+                                resolve();
+                            };
+
+                            img.src = file;
+                        })
+                    )
+                )
+            );
+
+            assetsReady = true;
+        }
+
+        /* 모서리와 중앙 그래픽을 선으로 연결 */
+        function updateLines() {
+            const bounds = main.getBoundingClientRect();
+
+            const centers = portals.map(link => {
+                const r = link.getBoundingClientRect();
+
+                return {
+                    x: r.left + r.width / 2 - bounds.left,
+                    y: r.top + r.height / 2 - bounds.top
+                };
+            });
+
+            const r = ratio.getBoundingClientRect();
+
+            const center = {
+                x: r.left + r.width / 2 - bounds.left,
+                y: r.top + r.height / 2 - bounds.top
+            };
+
+            const [tl, tr, bl, br] = centers;
+
+            document.querySelector('#boundary').setAttribute(
+                'd',
+                `M${tl.x},${tl.y}
+                 L${tr.x},${tr.y}
+                 L${br.x},${br.y}
+                 L${bl.x},${bl.y} Z`
+            );
+
+            document.querySelector('#connections').setAttribute(
+                'd',
+                centers.map(
+                    p => `M${p.x},${p.y} L${center.x},${center.y}`
+                ).join(' ')
+            );
+        }
+
+        function resize() {
+            width = main.clientWidth;
+            height = main.clientHeight;
+
+            const dpr = Math.min(devicePixelRatio || 1, 2);
+
+            canvas.width = Math.round(width * dpr);
+            canvas.height = Math.round(height * dpr);
+
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+            prints.length = 0;
+
+            walkers[0].x = width * .16;
+            walkers[0].y = height * .64;
+
+            walkers[1].x = width * .84;
+            walkers[1].y = height * .36;
+
+            target = {
+                x: width / 2,
+                y: height / 2
+            };
+
+            walkers.forEach(w => {
+                w.heading = Math.atan2(
+                    target.y - w.y,
+                    target.x - w.x
+                );
+
+                w.next = performance.now() +
+                    (w.kind === 'human' ? 100 : 370);
+            });
+
+            updateLines();
+        }
+
+        main.addEventListener('pointermove', event => {
+            if (!event.isPrimary) return;
+
+            const r = main.getBoundingClientRect();
+
+            target = {
+                x: event.clientX - r.left,
+                y: event.clientY - r.top
+            };
+
+            pointerInside = true;
+        });
+
+        main.addEventListener('pointerdown', event => {
+            const r = main.getBoundingClientRect();
+
+            target = {
+                x: event.clientX - r.left,
+                y: event.clientY - r.top
+            };
+
+            pointerInside = true;
+        });
+
+        main.addEventListener('pointerleave', () => {
+            pointerInside = false;
+        });
+
+        function takeStep(w, now) {
+            const dx = target.x - w.x;
+            const dy = target.y - w.y;
+            const distance = Math.hypot(dx, dy);
+
+            if (
+                distance <= settings.stopDistance ||
+                now < w.next
+            ) {
+                return;
+            }
+
+            w.next = now + settings.stepInterval;
+
+            const desired = Math.atan2(dy, dx);
+
+            const delta = Math.atan2(
+                Math.sin(desired - w.heading),
+                Math.cos(desired - w.heading)
+            );
+
+            /* 급격히 꺾이지 않고 커서를 향해 경로가 휘어짐 */
+            w.heading += Math.max(-.65, Math.min(.65, delta));
+
+            const stride = Math.min(
+                settings.stepLength,
+                distance - settings.stopDistance
+            );
+
+            w.x = Math.max(
+                30,
+                Math.min(
+                    width - 30,
+                    w.x + Math.cos(w.heading) * stride
+                )
+            );
+
+            w.y = Math.max(
+                30,
+                Math.min(
+                    height - 30,
+                    w.y + Math.sin(w.heading) * stride
+                )
+            );
+
+            const lateral = w.side === 0 ? -18 : 18;
+
+            prints.push({
+                kind: w.kind,
+                side: w.side,
+                x: w.x - Math.sin(w.heading) * lateral,
+                y: w.y + Math.cos(w.heading) * lateral,
+                angle: w.heading + Math.PI / 2,
+                born: now
+            });
+
+            if (prints.length > 80) prints.shift();
+
+            w.side = 1 - w.side;
+            playStep(w.kind);
+        }
+
+        function frame(now) {
+            ctx.clearRect(0, 0, width, height);
+
+            if (
+                assetsReady &&
+                pointerInside &&
+                !drag &&
+                !document.hidden &&
+                !reducedMotion.matches
+            ) {
+                walkers.forEach(w => takeStep(w, now));
+            }
+
+            for (let i = prints.length - 1; i >= 0; i--) {
+                if (
+                    now - prints[i].born >
+                    settings.footprintLife
+                ) {
+                    prints.splice(i, 1);
+                }
+            }
+
+            prints.forEach(p => {
+                const img = pictures[p.kind][p.side];
+                if (!img) return;
+
+                const age = now - p.born;
+
+                const fade = Math.min(
+                    1,
+                    (settings.footprintLife - age) / 1500
+                );
+
+                const h = Math.min(
+                    settings.footprintHeight,
+                    height * .13
+                );
+
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.angle);
+                ctx.globalAlpha = Math.max(0, fade);
+                ctx.drawImage(img, -h / 4, -h / 2, h / 2, h);
+                ctx.restore();
+            });
+
+            requestAnimationFrame(frame);
+        }
+
+        /* 중앙 그래픽을 모서리로 드래그해서 이동 */
+        function findPortal(x, y) {
+            return portals.find(link => {
+                const r = link.getBoundingClientRect();
+
+                return Math.hypot(
+                    x - r.left - r.width / 2,
+                    y - r.top - r.height / 2
+                ) <= r.width / 2 + 22;
+            });
+        }
+
+        function highlight(link) {
+            portals.forEach(item => {
+                item.classList.toggle(
+                    'is-target',
+                    item === link
+                );
+            });
+        }
+
+        function finishDrag(event, cancelled = false) {
+            if (!drag || drag.id !== event.pointerId) return;
+
+            const destination = !cancelled && drag.moved
+                ? findPortal(event.clientX, event.clientY)
+                : null;
+
+            const id = drag.id;
+            drag = null;
+
+            if (ratio.hasPointerCapture(id)) {
+                ratio.releasePointerCapture(id);
+            }
+
+            ratio.style.removeProperty('left');
+            ratio.style.removeProperty('top');
+
+            ratio.classList.remove('is-dragging');
+            main.classList.remove('is-dragging');
+
+            highlight(null);
+            updateLines();
+
+            if (destination) {
+                location.assign(destination.href);
+            }
+        }
+
+        ratio.addEventListener('pointerdown', event => {
+            if (
+                !event.isPrimary ||
+                event.button !== 0 ||
+                drag
+            ) {
+                return;
+            }
+
+            event.preventDefault();
+
+            const r = ratio.getBoundingClientRect();
+
+            drag = {
+                id: event.pointerId,
+                startX: event.clientX,
+                startY: event.clientY,
+                offsetX: event.clientX - r.left - r.width / 2,
+                offsetY: event.clientY - r.top - r.height / 2,
+                moved: false
+            };
+
+            ratio.setPointerCapture(event.pointerId);
+        });
+
+        ratio.addEventListener('pointermove', event => {
+            if (!drag || drag.id !== event.pointerId) return;
+
+            if (
+                !drag.moved &&
+                Math.hypot(
+                    event.clientX - drag.startX,
+                    event.clientY - drag.startY
+                ) < 7
+            ) {
+                return;
+            }
+
+            drag.moved = true;
+
+            main.classList.add('is-dragging');
+            ratio.classList.add('is-dragging');
+
+            const r = main.getBoundingClientRect();
+            const half = ratio.offsetWidth / 2;
+
+            ratio.style.left = `${Math.max(
+                half,
+                Math.min(
+                    width - half,
+                    event.clientX - r.left - drag.offsetX
+                )
+            )}px`;
+
+            ratio.style.top = `${Math.max(
+                half,
+                Math.min(
+                    height - half,
+                    event.clientY - r.top - drag.offsetY
+                )
+            )}px`;
+
+            highlight(findPortal(event.clientX, event.clientY));
+            updateLines();
+        });
+
+        ratio.addEventListener('pointerup', event => {
+            finishDrag(event);
+        });
+
+        ratio.addEventListener('pointercancel', event => {
+            finishDrag(event, true);
+        });
+
+        ratio.addEventListener('lostpointercapture', event => {
+            finishDrag(event, true);
+        });
+
+        ratio.addEventListener('dragstart', event => {
+            event.preventDefault();
+        });
+
+        window.addEventListener('keydown', event => {
+            if (event.key === 'Escape' && drag) {
+                finishDrag({ pointerId: drag.id }, true);
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            if (drag) {
+                finishDrag({ pointerId: drag.id }, true);
+            }
+
+            resize();
+        });
+
+        document.addEventListener('visibilitychange', () => {
+            Object.values(sounds).flat().forEach(audio => {
+                audio.pause();
+            });
+        });
+
+        resize();
+        loadFootprints();
+        requestAnimationFrame(frame);
+    </script>
+</body>
+</html>
