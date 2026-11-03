@@ -1,0 +1,1156 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Zoo | LAB</title>
+    <link rel="icon" type="image/png" href="../common/favicon.png">
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #dedede;
+        }
+
+        main {
+            position: relative;
+            width: 100%;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        /* 인물 이미지와 중앙 컬러 띠 */
+        .comparison {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .comparison::after {
+            content: '';
+            position: absolute;
+            z-index: 2;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2.75vw;
+            background: repeating-linear-gradient(
+                180deg,
+                #ffffff 0 4.9vh,
+                #0B7EFB 4.9vh 19.05vh
+            );
+            pointer-events: none;
+        }
+
+        .portrait-panel {
+            position: relative;
+            min-width: 0;
+            overflow: hidden;
+        }
+
+        .portrait-panel img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center top;
+            user-select: none;
+            -webkit-user-drag: none;
+        }
+
+        /* 번호 버튼 */
+        .feature-button {
+            position: absolute;
+            z-index: 3;
+            left: var(--x);
+            top: var(--y);
+            translate: -50% -50%;
+            display: grid;
+            place-items: center;
+            width: clamp(24px, 2.1vw, 44px);
+            height: clamp(24px, 2.1vw, 44px);
+            padding: 0;
+            border: 1.5px solid #000000;
+            border-radius: 50%;
+            background: #dedede;
+            color: #000000;
+            font-family: 'Times New Roman', serif;
+            font-size: clamp(15px, 1.3vw, 28px);
+            line-height: 1;
+            cursor: pointer;
+            transition:
+                background-color 0.15s ease,
+                color 0.15s ease;
+        }
+
+        .feature-button:hover,
+        .feature-button:focus-visible,
+        .feature-button[aria-pressed="true"] {
+            background: #ff0000;
+            color: #ffffff;
+        }
+
+        .feature-button:focus-visible {
+            outline: 2px solid #ffffff;
+            outline-offset: 3px;
+        }
+
+        /* 각 이미지 하단 설명 */
+        .feature-caption {
+            position: absolute;
+            z-index: 4;
+            left: 50%;
+            bottom: 4vh;
+            transform: translateX(-50%);
+            width: 94%;
+            margin: 0;
+            color: #ffffff;
+            font-size: clamp(10px, 1.15vw, 24px);
+            line-height: 1.35;
+            text-align: center;
+            text-shadow: 0 1px 3px rgb(0 0 0 / 65%);
+            pointer-events: none;
+        }
+
+        .feature-caption span {
+            display: block;
+        }
+
+        /* 모서리 이동용 비율 그래픽 */
+        .ratio {
+            position: absolute;
+            z-index: 8;
+            display: grid;
+            grid-template-columns:
+                repeat(4, clamp(18px, 1.78vw, 36px));
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .ratio[data-corner="top-left"] {
+            top: 4.6vh;
+            left: 2.15vw;
+        }
+
+        .ratio[data-corner="top-right"] {
+            top: 4.6vh;
+            right: 2.15vw;
+        }
+
+        .ratio[data-corner="bottom-left"] {
+            bottom: 4.6vh;
+            left: 2.15vw;
+        }
+
+        .ratio[data-corner="bottom-right"] {
+            bottom: 4.6vh;
+            right: 2.15vw;
+        }
+
+        .ratio.is-dragging {
+            cursor: grabbing;
+            bottom: auto;
+        }
+
+        .ratio.is-snapped {
+            transition:
+                left 0.14s ease-out,
+                top 0.14s ease-out;
+        }
+
+        .dot {
+            width: clamp(18px, 1.78vw, 36px);
+            height: clamp(18px, 1.78vw, 36px);
+            border: 2px solid #ff00db;
+            background: #ff002b;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .dot.animal {
+            background: #00ffe4;
+            border-color: #00ff41;
+        }
+
+        /* 드래그할 때 표시되는 목적지 */
+        .corner-navigation {
+            position: absolute;
+            inset: 0;
+            z-index: 7;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        main.is-navigating .corner-navigation {
+            visibility: visible;
+        }
+
+        .corner-link {
+            position: absolute;
+            display: grid;
+            place-items: center;
+            width: clamp(90px, 23%, 180px);
+            height: clamp(90px, 20%, 150px);
+            padding: 12px;
+            border: 1px dashed #feffd8;
+            background: rgb(44 44 44 / 80%);
+            color: #feffd8;
+            font-size: clamp(11px, 1vw, 15px);
+            text-align: center;
+            text-decoration: none;
+            transition: background-color 0.15s ease;
+        }
+
+        .corner-link[data-corner="top-left"] {
+            top: 0;
+            left: 0;
+        }
+
+        .corner-link[data-corner="top-right"] {
+            top: 0;
+            right: 0;
+        }
+
+        .corner-link[data-corner="bottom-left"] {
+            bottom: 0;
+            left: 0;
+        }
+
+        .corner-link[data-corner="bottom-right"] {
+            bottom: 0;
+            right: 0;
+        }
+
+        .corner-link.is-target {
+            border-style: solid;
+            background: #2b80ff;
+            color: #ffffff;
+        }
+
+        /* 눈 영역 캔버스 */
+        .gaze-eye {
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* 모바일 */
+        @media (max-width: 600px) {
+            .ratio {
+                grid-template-columns: repeat(4, 4.5vw);
+            }
+
+            .dot {
+                width: 4.5vw;
+                height: 4.5vw;
+            }
+
+            .comparison {
+                overflow-y: auto;
+                grid-template-columns: 1fr;
+                grid-template-rows: repeat(2, auto);
+            }
+
+            .portrait-panel {
+                aspect-ratio: 835 / 1114;
+            }
+
+            .comparison::after {
+                display: none;
+            }
+
+            .portrait-panel[data-species="human"]::before {
+                content: '';
+                position: absolute;
+                z-index: 2;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 2.75vw;
+                background: repeating-linear-gradient(
+                    90deg,
+                    #ffffff 0 4.9vw,
+                    #0B7EFB 4.9vw 19.05vw
+                );
+                pointer-events: none;
+            }
+
+            .feature-button {
+                width: 28px;
+                height: 28px;
+                font-size: 17px;
+            }
+        }
+        .home-link {
+            position: absolute;
+            z-index: 10;
+            top: 3.5%;
+            left: 50%;
+            transform: translateX(-50%);
+
+            margin: 0;
+            padding: 0;
+            border: none;
+            background: transparent;
+            color: #fff;
+
+            font-family: 'Courier New', monospace;
+            font-size: clamp(14px, 1.15vw, 22px);
+            font-weight: 400;
+            line-height: normal;
+            letter-spacing: .06em;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .home-link:hover {
+            color: #fff;
+            background: transparent;
+            opacity: .65;
+        }
+
+        .home-link:focus-visible {
+            outline: 1px dashed currentColor;
+            outline-offset: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <a class="home-link" href="../home/home.html" aria-label="홈으로 돌아가기">
+            Zoo | ooZ
+        </a>
+        <section class="comparison">
+            <!-- 이미지 파일은 lab 폴더에 함께 배치 -->
+            <div class="portrait-panel" data-species="animal">
+                <img
+                    src="animal.port.png"
+                    alt="동물 초상"
+                    draggable="false"
+                >
+
+                <button
+                    class="feature-button" type="button"
+                    data-feature="1" aria-label="동물 1번"
+                    aria-pressed="false"
+                    style="--x: 68.6%; --y: 22.9%;"
+                >1</button>
+
+                <button
+                    class="feature-button" type="button"
+                    data-feature="2" aria-label="동물 2번"
+                    aria-pressed="false"
+                    style="--x: 18.9%; --y: 22%;"
+                >2</button>
+
+                <button
+                    class="feature-button" type="button"
+                    data-feature="3" aria-label="동물 3번"
+                    aria-pressed="false"
+                    style="--x: 38.3%; --y: 30%;"
+                >3</button>
+
+                <button
+                    class="feature-button" type="button"
+                    data-feature="4" aria-label="동물 4번"
+                    aria-pressed="false"
+                    style="--x: 47.7%; --y: 42%;"
+                >4</button>
+
+                <button
+                    class="feature-button" type="button"
+                    data-feature="5" aria-label="동물 5번"
+                    aria-pressed="false"
+                    style="--x: 66.4%; --y: 58.9%;"
+                >5</button>
+
+                <button
+                    class="feature-button" type="button"
+                    data-feature="6" aria-label="동물 6번"
+                    aria-pressed="false"
+                    style="--x: 14.36%; --y: 67.2%;"
+                >6</button>
+
+                <button
+                    class="feature-button" type="button"
+                    data-feature="7" aria-label="동물 7번"
+                    aria-pressed="false"
+                    style="--x: 65.6%; --y: 86.2%;"
+                >7</button>
+
+                <p class="feature-caption" aria-live="polite">
+                    <span class="caption-title"></span>
+                    <span class="caption-description"></span>
+                </p>
+            </div>
+
+            <div class="portrait-panel" data-species="human">
+                <img
+                    src="human.port.png"
+                    alt="인간 초상"
+                    draggable="false"
+                >
+
+                <button
+                    class="feature-button" type="button"
+                    data-feature="1" aria-label="인간 1번"
+                    aria-pressed="false"
+                    style="--x: 73.76%; --y: 12%;"
+                >1</button>
+
+                <button
+                    class="feature-button" type="button"
+                    data-feature="2" aria-label="인간 2번"
+                    aria-pressed="false"
+                    style="--x: 22.52%; --y: 35.59%;"
+                >2</button>
+
+                <button
+                    class="feature-button" type="button"
+                    data-feature="3" aria-label="인간 3번"
+                    aria-pressed="false"
+                    style="--x: 38.64%; --y: 34.2%;"
+                >3</button>
+
+                <button
+                    class="feature-button" type="button"
+                    data-feature="4" aria-label="인간 4번"
+                    aria-pressed="false"
+                    style="--x: 47.73%; --y: 44.79%;"
+                >4</button>
+
+                <button
+                    class="feature-button" type="button"
+                    data-feature="5" aria-label="인간 5번"
+                    aria-pressed="false"
+                    style="--x: 65%; --y: 52.78%;"
+                >5</button>
+
+                <button
+                    class="feature-button" type="button"
+                    data-feature="6" aria-label="인간 6번"
+                    aria-pressed="false"
+                    style="--x: 13.22%; --y: 57.73%;"
+                >6</button>
+
+                <button
+                    class="feature-button" type="button"
+                    data-feature="7" aria-label="인간 7번"
+                    aria-pressed="false"
+                    style="--x: 79.24%; --y: 80.47%;"
+                >7</button>
+
+                <p class="feature-caption" aria-live="polite">
+                    <span class="caption-title"></span>
+                    <span class="caption-description"></span>
+                </p>
+            </div>
+        </section>
+
+        <div
+            class="ratio"
+            data-corner="top-left"
+            title="모서리로 드래그하여 페이지 이동"
+        ></div>
+
+        <!-- 현재 파일: lab/index.html -->
+        <nav class="corner-navigation">
+            <a
+                class="corner-link"
+                data-corner="top-left"
+                href="../lab/index.html"
+            >LAB ↖</a>
+
+            <a
+                class="corner-link"
+                data-corner="top-right"
+                href="../zoo/index2.html"
+            >ZOO ↗</a>
+
+            <a
+                class="corner-link"
+                data-corner="bottom-left"
+                href="../flip/index3.html"
+            >FLIP CARD ↙</a>
+
+            <a
+                class="corner-link"
+                data-corner="bottom-right"
+                href="../cube/about.html"
+            >CUBE ↘</a>
+        </nav>
+    </main>
+
+    <script>
+        /* 모서리 드래그 페이지 이동 */
+        function setupCornerNavigation() {
+            const main = document.querySelector('main');
+            const ratio = document.querySelector('.ratio');
+            const links = Array.from(
+                document.querySelectorAll('.corner-link')
+            );
+
+            let drag = null;
+
+            function findCorner(x, y) {
+                const bounds = main.getBoundingClientRect();
+
+                const width = Math.min(
+                    bounds.width * 0.45,
+                    260,
+                    Math.max(120, bounds.width * 0.3)
+                );
+
+                const height = Math.min(
+                    bounds.height * 0.45,
+                    220,
+                    Math.max(120, bounds.height * 0.28)
+                );
+
+                const left =
+                    x >= bounds.left &&
+                    x <= bounds.left + width;
+
+                const right =
+                    x <= bounds.right &&
+                    x >= bounds.right - width;
+
+                const top =
+                    y >= bounds.top &&
+                    y <= bounds.top + height;
+
+                const bottom =
+                    y <= bounds.bottom &&
+                    y >= bounds.bottom - height;
+
+                if (left && top) return 'top-left';
+                if (right && top) return 'top-right';
+                if (left && bottom) return 'bottom-left';
+                if (right && bottom) return 'bottom-right';
+
+                return null;
+            }
+
+            function highlight(corner) {
+                links.forEach((link) => {
+                    link.classList.toggle(
+                        'is-target',
+                        link.dataset.corner === corner
+                    );
+                });
+            }
+
+            function restore() {
+                ratio.classList.remove('is-snapped');
+                ratio.style.removeProperty('left');
+                ratio.style.removeProperty('top');
+                ratio.style.removeProperty('right');
+                main.classList.remove('is-navigating');
+                ratio.classList.remove('is-dragging');
+                highlight(null);
+            }
+
+            ratio.addEventListener('pointerdown', (event) => {
+                if (!event.isPrimary || event.button !== 0) return;
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                const bounds = ratio.getBoundingClientRect();
+
+                drag = {
+                    pointerId: event.pointerId,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    offsetX: event.clientX - bounds.left,
+                    offsetY: event.clientY - bounds.top,
+                    moved: false
+                };
+
+                ratio.setPointerCapture(event.pointerId);
+            });
+
+            ratio.addEventListener('pointermove', (event) => {
+                if (!drag || drag.pointerId !== event.pointerId) return;
+
+                event.preventDefault();
+
+                if (!drag.moved) {
+                    const distance = Math.hypot(
+                        event.clientX - drag.startX,
+                        event.clientY - drag.startY
+                    );
+
+                    if (distance < 7) return;
+
+                    drag.moved = true;
+                    main.classList.add('is-navigating');
+
+                    const origin = ratio.getBoundingClientRect();
+                    const parent = main.getBoundingClientRect();
+
+                    ratio.style.left =
+                        `${origin.left - parent.left}px`;
+                    ratio.style.top =
+                        `${origin.top - parent.top}px`;
+                    ratio.style.right = 'auto';
+                    ratio.classList.add('is-dragging');
+                }
+
+                const bounds = main.getBoundingClientRect();
+                const graphic = ratio.getBoundingClientRect();
+
+                let x = Math.max(
+                    0,
+                    Math.min(
+                        bounds.width - graphic.width,
+                        event.clientX - bounds.left - drag.offsetX
+                    )
+                );
+
+                let y = Math.max(
+                    0,
+                    Math.min(
+                        bounds.height - graphic.height,
+                        event.clientY - bounds.top - drag.offsetY
+                    )
+                );
+
+                const corner = findCorner(
+                    event.clientX,
+                    event.clientY
+                );
+
+                ratio.classList.toggle(
+                    'is-snapped',
+                    Boolean(corner)
+                );
+
+                if (corner) {
+                    const marginX = bounds.width * 0.0215;
+                    const marginY = bounds.height * 0.046;
+
+                    x = corner.endsWith('left')
+                        ? marginX
+                        : bounds.width - graphic.width - marginX;
+
+                    y = corner.startsWith('top')
+                        ? marginY
+                        : bounds.height - graphic.height - marginY;
+                }
+
+                ratio.style.left = `${x}px`;
+                ratio.style.top = `${y}px`;
+                ratio.style.right = 'auto';
+
+                highlight(corner);
+            });
+
+            function finish(event, cancelled = false) {
+                if (!drag || drag.pointerId !== event.pointerId) return;
+
+                const corner = !cancelled && drag.moved
+                    ? findCorner(event.clientX, event.clientY)
+                    : null;
+
+                const target = links.find(
+                    (link) => link.dataset.corner === corner
+                );
+
+                const pointerId = drag.pointerId;
+                drag = null;
+
+                if (ratio.hasPointerCapture(pointerId)) {
+                    ratio.releasePointerCapture(pointerId);
+                }
+
+                restore();
+
+                if (target) {
+                    window.location.assign(target.href);
+                }
+            }
+
+            ratio.addEventListener('pointerup', (event) => {
+                finish(event);
+            });
+
+            ratio.addEventListener('pointercancel', (event) => {
+                finish(event, true);
+            });
+
+            ratio.addEventListener('lostpointercapture', (event) => {
+                finish(event, true);
+            });
+
+            ratio.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+            });
+
+            ratio.addEventListener('dragstart', (event) => {
+                event.preventDefault();
+            });
+
+            window.addEventListener('resize', () => {
+                if (drag) {
+                    finish({ pointerId: drag.pointerId }, true);
+                }
+            });
+
+            window.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && drag) {
+                    finish({ pointerId: drag.pointerId }, true);
+                }
+            });
+        }
+
+        /* 비율 그래픽 */
+        const ratio = document.querySelector('.ratio');
+        const counts = {
+            human: 8,
+            animal: 8
+        };
+
+        const total = counts.human + counts.animal;
+        const humanDots = total
+            ? Math.round(counts.human / total * 16)
+            : 0;
+
+        for (let i = 0; i < 16; i++) {
+            const dot = document.createElement('span');
+
+            dot.className = i < humanDots
+                ? 'dot'
+                : 'dot animal';
+
+            ratio.append(dot);
+        }
+
+        setupCornerNavigation();
+
+        /* 번호별 제목과 설명 */
+        const captions = {
+            animal: [
+                ['Head', 'Dense fur rises into a pointed crest.'],
+                ['Ears', 'Rounded ears emerge from the surrounding fur.'],
+                ['Brain', 'Estimated IQ: 50–70'],
+                ['Eyes', 'Average visual acuity: approximately 1.0–1.5.'],
+                ['Nose', 'An elongated nose forms a ridge down the face.'],
+                ['Name', 'Monkey'],
+                ['Body', 'Average adult male body length: approx. 76 cm (tail excluded).']
+            ],
+            human: [
+                ['Head', 'Short, wavy hair is swept back from the forehead.'],
+                ['Ears', 'Exposed ears show distinct folds along their edges.'],
+                ['Brain', 'Standardised mean IQ: 100.'],
+                ['Eyes', 'Average visual acuity: approximately 1.0.'],
+                ['Nose', 'A narrow bridge extends to a rounded tip.'],
+                ['Name', 'Human'],
+                ['Body', 'Average adult male height: approximately 171 cm.']
+            ]
+        };
+
+        const featureButtons = document.querySelectorAll(
+            '.feature-button'
+        );
+        const portraitPanels = document.querySelectorAll(
+            '.portrait-panel'
+        );
+
+        function showFeature(number) {
+            featureButtons.forEach((button) => {
+                button.setAttribute(
+                    'aria-pressed',
+                    String(Number(button.dataset.feature) === number)
+                );
+            });
+
+            portraitPanels.forEach((panel) => {
+                const [title, description] =
+                    captions[panel.dataset.species][number - 1];
+
+                panel.querySelector('.caption-title').textContent =
+                    `${number}. ${title.toLowerCase()}`;
+
+                panel.querySelector(
+                    '.caption-description'
+                ).textContent = description;
+            });
+        }
+
+        featureButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                showFeature(Number(button.dataset.feature));
+            });
+        });
+
+        /*
+            원본 사진의 눈 영역을 샘플링합니다.
+            좌표와 이동량은 원본 이미지 픽셀 기준입니다.
+        */
+        function setupGazeTracking() {
+            const reducedMotion = matchMedia(
+                '(prefers-reduced-motion: reduce)'
+            );
+
+            const eyeSettings = {
+                animal: [
+                    {
+                        x: 403, y: 343,
+                        rx: 33, ry: 18,
+                        moveX: 6, moveY: 3.75
+                    },
+                    {
+                        x: 518, y: 334,
+                        rx: 31, ry: 16,
+                        moveX: 6, moveY: 3.45
+                    }
+                ],
+                human: [
+                    {
+                        x: 395, y: 372,
+                        rx: 31, ry: 15,
+                        moveX: 6, moveY: 3
+                    },
+                    {
+                        x: 522, y: 365,
+                        rx: 30, ry: 15,
+                        moveX: 6, moveY: 3
+                    }
+                ]
+            };
+
+            const eyes = [];
+            const pointer = {
+                x: 0,
+                y: 0,
+                active: false
+            };
+
+            let animation = 0;
+
+            function positionEyes() {
+                eyes.forEach((eye) => {
+                    const bounds = eye.panel.getBoundingClientRect();
+
+                    // object-fit: cover / object-position: center top
+                    const scale = Math.max(
+                        bounds.width / eye.image.naturalWidth,
+                        bounds.height / eye.image.naturalHeight
+                    );
+
+                    const offsetX = (
+                        bounds.width -
+                        eye.image.naturalWidth * scale
+                    ) / 2;
+
+                    const left = offsetX + eye.originX * scale;
+                    const top = eye.originY * scale;
+
+                    Object.assign(eye.canvas.style, {
+                        left: left + 'px',
+                        top: top + 'px',
+                        width: eye.width * scale + 'px',
+                        height: eye.height * scale + 'px'
+                    });
+
+                    eye.scale = scale;
+                });
+
+                wake();
+            }
+
+            function render(eye, dx, dy) {
+                const {
+                    width,
+                    height,
+                    source,
+                    output,
+                    weights
+                } = eye;
+
+                const input = source.data;
+                const result = output.data;
+
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        const i = y * width + x;
+                        const weight = weights[i];
+
+                        if (!weight) continue;
+
+                        const sx = Math.max(
+                            0,
+                            Math.min(
+                                width - 1.001,
+                                x - dx * weight
+                            )
+                        );
+
+                        const sy = Math.max(
+                            0,
+                            Math.min(
+                                height - 1.001,
+                                y - dy * weight
+                            )
+                        );
+
+                        const x0 = Math.floor(sx);
+                        const y0 = Math.floor(sy);
+                        const fx = sx - x0;
+                        const fy = sy - y0;
+
+                        const a = (y0 * width + x0) * 4;
+                        const b = a + 4;
+                        const c = a + width * 4;
+                        const d = c + 4;
+                        const dest = i * 4;
+
+                        for (let k = 0; k < 3; k++) {
+                            result[dest + k] =
+                                input[a + k] * (1 - fx) * (1 - fy) +
+                                input[b + k] * fx * (1 - fy) +
+                                input[c + k] * (1 - fx) * fy +
+                                input[d + k] * fx * fy;
+                        }
+                    }
+                }
+
+                eye.context.putImageData(output, 0, 0);
+            }
+
+            function frame() {
+                animation = 0;
+                let moving = false;
+
+                eyes.forEach((eye) => {
+                    const rect = eye.canvas.getBoundingClientRect();
+                    const centerX = rect.left + rect.width / 2;
+                    const centerY = rect.top + rect.height / 2;
+
+                    let tx = 0;
+                    let ty = 0;
+
+                    if (pointer.active && !reducedMotion.matches) {
+                        tx = Math.tanh(
+                            (pointer.x - centerX) /
+                            (innerWidth * 0.28)
+                        ) * eye.config.moveX;
+
+                        ty = Math.tanh(
+                            (pointer.y - centerY) /
+                            (innerHeight * 0.32)
+                        ) * eye.config.moveY;
+                    }
+
+                    eye.dx += (tx - eye.dx) * 0.16;
+                    eye.dy += (ty - eye.dy) * 0.16;
+
+                    const remaining =
+                        Math.abs(tx - eye.dx) +
+                        Math.abs(ty - eye.dy);
+
+                    if (remaining < 0.015) {
+                        eye.dx = tx;
+                        eye.dy = ty;
+                    } else {
+                        moving = true;
+                    }
+
+                    render(eye, eye.dx, eye.dy);
+                });
+
+                if (moving) {
+                    animation = requestAnimationFrame(frame);
+                }
+            }
+
+            function wake() {
+                if (!animation && eyes.length) {
+                    animation = requestAnimationFrame(frame);
+                }
+            }
+
+            document.querySelectorAll('.portrait-panel')
+                .forEach((panel) => {
+                    const image = panel.querySelector('img');
+
+                    function initialize() {
+                        if (
+                            panel.dataset.gazeReady ||
+                            !image.naturalWidth
+                        ) {
+                            return;
+                        }
+
+                        panel.dataset.gazeReady = 'true';
+
+                        eyeSettings[panel.dataset.species]
+                            .forEach((config) => {
+                                const width =
+                                    Math.ceil(config.rx * 2) + 4;
+
+                                const height =
+                                    Math.ceil(config.ry * 2) + 4;
+
+                                const originX = Math.round(
+                                    config.x - width / 2
+                                );
+
+                                const originY = Math.round(
+                                    config.y - height / 2
+                                );
+
+                                const canvas =
+                                    document.createElement('canvas');
+
+                                canvas.className = 'gaze-eye';
+                                canvas.setAttribute(
+                                    'aria-hidden',
+                                    'true'
+                                );
+                                canvas.width = width;
+                                canvas.height = height;
+
+                                const context =
+                                    canvas.getContext('2d');
+
+                                context.drawImage(
+                                    image,
+                                    originX,
+                                    originY,
+                                    width,
+                                    height,
+                                    0,
+                                    0,
+                                    width,
+                                    height
+                                );
+
+                                const source = context.getImageData(
+                                    0, 0, width, height
+                                );
+
+                                const output = new ImageData(
+                                    new Uint8ClampedArray(source.data),
+                                    width,
+                                    height
+                                );
+
+                                const weights = new Float32Array(
+                                    width * height
+                                );
+
+                                for (let y = 0; y < height; y++) {
+                                    for (let x = 0; x < width; x++) {
+                                        const distance = Math.hypot(
+                                            (
+                                                originX + x -
+                                                config.x
+                                            ) / config.rx,
+                                            (
+                                                originY + y -
+                                                config.y
+                                            ) / config.ry
+                                        );
+
+                                        weights[y * width + x] =
+                                            distance < 1
+                                                ? Math.pow(
+                                                    1 - distance *
+                                                    distance,
+                                                    2
+                                                )
+                                                : 0;
+                                    }
+                                }
+
+                                panel.append(canvas);
+
+                                eyes.push({
+                                    panel,
+                                    image,
+                                    config,
+                                    canvas,
+                                    context,
+                                    source,
+                                    output,
+                                    weights,
+                                    width,
+                                    height,
+                                    originX,
+                                    originY,
+                                    dx: 0,
+                                    dy: 0
+                                });
+                            });
+
+                        positionEyes();
+                    }
+
+                    image.addEventListener(
+                        'load',
+                        initialize,
+                        { once: true }
+                    );
+
+                    if (image.complete) initialize();
+
+                    new ResizeObserver(positionEyes).observe(panel);
+                });
+
+            document.addEventListener('pointermove', (event) => {
+                if (event.pointerType === 'touch') return;
+
+                pointer.x = event.clientX;
+                pointer.y = event.clientY;
+                pointer.active = true;
+
+                wake();
+            }, { passive: true });
+
+            function reset() {
+                pointer.active = false;
+                wake();
+            }
+
+            document.documentElement.addEventListener(
+                'pointerleave',
+                reset
+            );
+
+            window.addEventListener('blur', reset);
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) reset();
+            });
+
+            reducedMotion.addEventListener('change', reset);
+
+            window.addEventListener(
+                'resize',
+                positionEyes,
+                { passive: true }
+            );
+        }
+
+        setupGazeTracking();
+    </script>
+</body>
+</html>
