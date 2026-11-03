@@ -1,0 +1,1130 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Zoo | CUBE</title>
+    <link rel="icon" type="image/png" href="../common/favicon.png">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: #0046F0;
+        }
+
+        main {
+            position: relative;
+            width: 100%;
+            height: 100dvh;
+            overflow: hidden;
+        }
+
+        /* 상단 반복 그래픽 */
+        .top-bar {
+            position: absolute;
+            z-index: 3;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4.9vh;
+            background: repeating-linear-gradient(
+                90deg,
+                #557dff 0 2.75vw,
+                #00ef00 2.75vw calc((100vw - 2.75vw) / 9)
+            );
+            pointer-events: none;
+        }
+
+        /* 왼쪽 중앙 버튼 영역 */
+        .cube-controls {
+            position: absolute;
+            z-index: 6;
+            left: 3.4vw;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* 원형 아이콘 + 텍스트 */
+        .cube-button {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            width: auto;
+            height: auto;
+            margin: 0;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+            color: #FFFFFF;
+            font-family: 'Courier New', monospace;
+            font-size: clamp(14px, 1.05vw, 22px);
+            font-weight: 400;
+            line-height: 1.2;
+            text-align: left;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+
+        .cube-button::before {
+            content: '';
+            display: block;
+            flex-shrink: 0;
+            width: clamp(22px, 1.8vw, 36px);
+            border: clamp(5px, 0.45vw, 9px) solid #c738b0;
+            aspect-ratio: 1;
+            border-radius: 50%;
+            background: #97e7e7;
+            transition:
+                background-color 0.2s ease,
+                border-color 0.2s ease;
+        }
+
+        .cube-button span {
+            text-decoration: none;
+        }
+
+        .cube-button:not(:disabled):hover::before {
+            border-color: #97e7e7;
+            background: #c738b0;
+        }
+
+        /* 사용할 수 없는 버튼: 텍스트 */
+        .cube-button:disabled {
+            color: #8390b0;
+            cursor: not-allowed;
+        }
+
+        /* 사용할 수 없는 버튼: 원형 아이콘 */
+        .cube-button:disabled::before {
+            border-color: #625080;
+            background: #527c94;
+        }
+
+        .cube-button:active {
+            background: transparent;
+        }
+
+        .cube-button:focus-visible {
+            outline: 2px solid #557dff;
+            outline-offset: 6px;
+        }
+
+        @media (max-width: 600px) {
+            .cube-controls {
+                left: 4vw;
+                gap: 16px;
+            }
+
+            .cube-button {
+                gap: 10px;
+                font-size: 12px;
+            }
+        }
+
+        /* 중앙 인물과 큐브 */
+        .figure {
+            /* 인물 크기 */
+            --figure-height: min(80dvh, 120vw);
+
+            /* 큐브 한 변 길이 */
+            --cube-size: min(28dvh, 40vw);
+
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            height: var(--figure-height);
+            width: max-content;
+            pointer-events: none;
+        }
+
+        /* 몸 이미지 하단을 화면 하단에 고정 */
+        .body-image {
+            display: block;
+            width: auto;
+            height: 100%;
+            max-width: none;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-user-drag: none;
+            pointer-events: none;
+        }
+
+        /* 큐브 위치 */
+        .cube-scene {
+            position: absolute;
+            z-index: 2;
+
+            /* 숫자를 키우면 아래로 이동 */
+            top: 0%;
+
+            left: 50%;
+            transform: translateX(-50%);
+            width: var(--cube-size);
+            height: var(--cube-size);
+            perspective: 1100px;
+            pointer-events: auto;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+            cursor: grab;
+        }
+
+        .cube-scene.is-rotating {
+            cursor: grabbing;
+        }
+
+        .cube {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transform: rotateX(-18deg) rotateY(-28deg);
+        }
+
+        .cube-face {
+            position: absolute;
+            inset: 0;
+            border: 1px solid #555555;
+            backface-visibility: hidden;
+            cursor: pointer;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
+
+        /*
+            아래 이미지들은 about.html과
+            같은 cube 폴더에 배치합니다.
+        */
+        .cube-face.front {
+            background-image: url('human_front.png');
+            background-color: #d8d8d8;
+            transform: translateZ(calc(var(--cube-size) / 2));
+        }
+
+        .cube-face.back {
+            background-image: url('human_back.png');
+            background-color: #a9a9a9;
+            transform:
+                rotateY(180deg)
+                translateZ(calc(var(--cube-size) / 2));
+        }
+
+        .cube-face.right {
+            background-image: url('human_right.png');
+            background-color: #bcbcbc;
+            transform:
+                rotateY(90deg)
+                translateZ(calc(var(--cube-size) / 2));
+        }
+
+        .cube-face.left {
+            background-image: url('human_left.png');
+            background-color: #c9c9c9;
+            transform:
+                rotateY(-90deg)
+                translateZ(calc(var(--cube-size) / 2));
+        }
+
+        .cube-face.top {
+            background-image: url('human_top.png');
+            background-color: #eeeeee;
+            transform:
+                rotateX(90deg)
+                translateZ(calc(var(--cube-size) / 2));
+        }
+
+        .cube-face.bottom {
+            background-image: url('human_bottom.png');
+            background-color: #888888;
+            transform:
+                rotateX(-90deg)
+                translateZ(calc(var(--cube-size) / 2));
+        }
+
+        /* 큐브 전개도 */
+        main.is-unfolded .figure {
+            --net-size: min(14.3vw, 25.5dvh);
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            transform: none;
+        }
+
+        main.is-unfolded .body-image {
+            visibility: hidden;
+        }
+
+        main.is-unfolded .cube-scene {
+            top: 52%;
+            left: 52%;
+            width: calc(var(--net-size) * 4);
+            height: calc(var(--net-size) * 3);
+            transform: translate(-50%, -50%);
+            perspective: none;
+            cursor: default;
+            touch-action: auto;
+        }
+
+        main.is-unfolded .cube {
+            transform: none !important;
+            transform-style: flat;
+        }
+
+        main.is-unfolded .cube-face {
+            inset: auto;
+            width: var(--net-size);
+            height: var(--net-size);
+            border: 1.5px solid #557dff;
+            transform: none;
+            backface-visibility: visible;
+        }
+
+        main.is-unfolded .cube-face.back {
+            left: 0;
+            top: var(--net-size);
+        }
+
+        main.is-unfolded .cube-face.left {
+            left: var(--net-size);
+            top: var(--net-size);
+        }
+
+        main.is-unfolded .cube-face.front {
+            left: calc(var(--net-size) * 2);
+            top: var(--net-size);
+        }
+
+        main.is-unfolded .cube-face.right {
+            left: calc(var(--net-size) * 3);
+            top: var(--net-size);
+        }
+
+        main.is-unfolded .cube-face.top {
+            left: calc(var(--net-size) * 2);
+            top: 0;
+        }
+
+        main.is-unfolded .cube-face.bottom {
+            left: calc(var(--net-size) * 2);
+            top: calc(var(--net-size) * 2);
+        }
+
+        @media (max-width: 600px) {
+            main.is-unfolded .figure {
+                --net-size: min(22vw, 20dvh);
+            }
+
+            main.is-unfolded .cube-scene {
+                left: 50%;
+                top: 40%;
+            }
+
+            main.is-unfolded .cube-controls {
+                top: auto;
+                bottom: 9dvh;
+                transform: none;
+            }
+        }
+
+        /* 모서리 이동용 비율 그래픽 */
+        .ratio {
+            position: absolute;
+            z-index: 8;
+            display: grid;
+            grid-template-columns:
+                repeat(4, clamp(18px, 1.78vw, 36px));
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .ratio[data-corner="top-left"] {
+            top: 4.6vh;
+            left: 2.15vw;
+        }
+
+        .ratio[data-corner="top-right"] {
+            top: 4.6vh;
+            right: 2.15vw;
+        }
+
+        .ratio[data-corner="bottom-left"] {
+            bottom: 4.6vh;
+            left: 2.15vw;
+        }
+
+        .ratio[data-corner="bottom-right"] {
+            bottom: 4.6vh;
+            right: 2.15vw;
+        }
+
+        .ratio.is-dragging {
+            cursor: grabbing;
+            bottom: auto;
+        }
+
+        .dot {
+            width: clamp(18px, 1.78vw, 36px);
+            height: clamp(18px, 1.78vw, 36px);
+            border: 2px solid #ff00db;
+            background: #ff002b;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .dot.animal {
+            background: #00ffe4;
+            border-color: #00ff41;
+        }
+
+        /* 페이지 이동 목적지 */
+        .corner-navigation {
+            position: absolute;
+            inset: 0;
+            z-index: 7;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        main.is-navigating .corner-navigation {
+            visibility: visible;
+        }
+
+        .corner-link {
+            position: absolute;
+            display: grid;
+            place-items: center;
+            width: clamp(90px, 23%, 180px);
+            height: clamp(90px, 20%, 150px);
+            padding: 12px;
+            border: 1px dashed #feffd8;
+            background: rgb(44 44 44 / 80%);
+            color: #feffd8;
+            font-size: clamp(11px, 1vw, 15px);
+            text-align: center;
+            text-decoration: none;
+            transition: background-color 0.15s ease;
+        }
+
+        .corner-link[data-corner="top-left"] {
+            top: 0;
+            left: 0;
+        }
+
+        .corner-link[data-corner="top-right"] {
+            top: 0;
+            right: 0;
+        }
+
+        .corner-link[data-corner="bottom-left"] {
+            bottom: 0;
+            left: 0;
+        }
+
+        .corner-link[data-corner="bottom-right"] {
+            bottom: 0;
+            right: 0;
+        }
+
+        .corner-link.is-target {
+            border-style: solid;
+            background: #2b80ff;
+            color: #ffffff;
+        }
+
+        @media (max-width: 600px) {
+            .ratio {
+                grid-template-columns: repeat(4, 4.5vw);
+            }
+
+            .dot {
+                width: 4.5vw;
+                height: 4.5vw;
+            }
+        }
+        .home-link {
+            position: absolute;
+            z-index: 10;
+            top: 3.5%;
+            left: 50%;
+            transform: translateX(-50%);
+
+            margin: 0;
+            padding: 0;
+            border: none;
+            background: transparent;
+            color: #fff;
+
+            font-family: 'Courier New', monospace;
+            font-size: clamp(14px, 1.15vw, 22px);
+            font-weight: 400;
+            line-height: normal;
+            letter-spacing: .06em;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .home-link:hover {
+            color: #fff;
+            background: transparent;
+            opacity: .65;
+        }
+
+        .home-link:focus-visible {
+            outline: 1px dashed currentColor;
+            outline-offset: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <a class="home-link" href="../home/home.html" aria-label="홈으로 돌아가기">
+            Zoo | ooZ
+        </a>
+        <div class="top-bar" aria-hidden="true"></div>
+
+        <div class="cube-controls">
+            <button
+                class="cube-button"
+                type="button"
+                data-action="toggle-body"
+                aria-pressed="false"
+            >
+                <span>change body</span>
+            </button>
+
+            <button
+                class="cube-button"
+                type="button"
+                data-action="shuffle-faces"
+            >
+                <span>random face</span>
+            </button>
+
+            <button
+                class="cube-button"
+                type="button"
+                data-action="toggle-unfold"
+                aria-controls="cube-figure"
+                aria-expanded="false"
+            >
+                <span>unfold cube</span>
+            </button>
+        </div>
+
+        <!-- 중앙 몸 이미지와 큐브 -->
+        <div class="figure" id="cube-figure">
+            <img
+                class="body-image"
+                src="body.png"
+                alt="남성 상반신"
+                draggable="false"
+            >
+
+            <div
+                class="cube-scene"
+                aria-label="드래그하여 회전하는 큐브"
+            >
+                <div class="cube">
+                    <div class="cube-face front"></div>
+                    <div class="cube-face back"></div>
+                    <div class="cube-face right"></div>
+                    <div class="cube-face left"></div>
+                    <div class="cube-face top"></div>
+                    <div class="cube-face bottom"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 모서리 드래그 페이지 이동 -->
+        <div
+            class="ratio"
+            data-corner="bottom-right"
+            title="모서리로 드래그하여 페이지 이동"
+        ></div>
+
+        <!--
+            현재 파일 위치: cube/about.html
+            다른 페이지는 한 단계 밖으로 나가서 이동
+        -->
+        <nav class="corner-navigation">
+            <a
+                class="corner-link"
+                data-corner="top-left"
+                href="../lab/index.html"
+            >LAB ↖</a>
+
+            <a
+                class="corner-link"
+                data-corner="top-right"
+                href="../zoo/index2.html"
+            >ZOO ↗</a>
+
+            <a
+                class="corner-link"
+                data-corner="bottom-left"
+                href="../flip/index3.html"
+            >FLIP CARD ↙</a>
+
+            <a
+                class="corner-link"
+                data-corner="bottom-right"
+                href="../cube/about.html"
+            >CUBE ↘</a>
+        </nav>
+    </main>
+
+    <script>
+        /* 같은 방향의 인간·원숭이 이미지 중 각 면을 독립적으로 선택 */
+        function setupFaceShuffle() {
+            const directions = [
+                'front', 'back', 'right', 'left', 'top', 'bottom'
+            ];
+
+            const species = ['human', 'ape'];
+
+            // 이미지 12장 미리 불러오기
+            const preloadImages = [];
+
+            for (const direction of directions) {
+                for (const kind of species) {
+                    const image = new Image();
+                    image.src = `${kind}_${direction}.png`;
+                    preloadImages.push(image);
+                }
+            }
+
+            function shuffleFaces() {
+                for (const direction of directions) {
+                    const kind = Math.random() < 0.5
+                        ? 'human'
+                        : 'ape';
+
+                    const face = document.querySelector(
+                        `.cube-face.${direction}`
+                    );
+
+                    face.style.backgroundImage =
+                        `url("${kind}_${direction}.png")`;
+
+                    face.dataset.species = kind;
+                }
+            }
+
+            document.querySelector('[data-action="shuffle-faces"]')
+                .addEventListener('click', shuffleFaces);
+
+            shuffleFaces();
+        }
+
+        /* 각 면 클릭: 해당 면만 인간 ↔ 원숭이 전환 */
+        function setupFaceClick() {
+            const scene = document.querySelector('.cube-scene');
+
+            const directions = [
+                'front', 'back', 'right', 'left', 'top', 'bottom'
+            ];
+
+            let startX = 0;
+            let startY = 0;
+            let moved = false;
+
+            scene.addEventListener('pointerdown', (event) => {
+                if (!event.isPrimary || event.button !== 0) return;
+
+                startX = event.clientX;
+                startY = event.clientY;
+                moved = false;
+            });
+
+            scene.addEventListener('pointermove', (event) => {
+                if (
+                    Math.hypot(
+                        event.clientX - startX,
+                        event.clientY - startY
+                    ) > 6
+                ) {
+                    moved = true;
+                }
+            });
+
+            scene.addEventListener('pointercancel', () => {
+                moved = true;
+            });
+
+            scene.addEventListener('click', (event) => {
+                if (moved) return;
+
+                const target = document.elementFromPoint(
+                    event.clientX,
+                    event.clientY
+                );
+
+                const face = target && target.closest('.cube-face');
+
+                if (!face || !scene.contains(face)) return;
+
+                const direction = directions.find(
+                    (name) => face.classList.contains(name)
+                );
+
+                if (!direction) return;
+
+                const kind = face.dataset.species === 'ape'
+                    ? 'human'
+                    : 'ape';
+
+                face.dataset.species = kind;
+
+                face.style.backgroundImage =
+                    `url("${kind}_${direction}.png")`;
+            });
+        }
+
+        /* 큐브와 전개도 전환 */
+        function setupCubeUnfold() {
+            const main = document.querySelector('main');
+
+            const button = document.querySelector(
+                '[data-action="toggle-unfold"]'
+            );
+
+            const bodyButton = document.querySelector(
+                '[data-action="toggle-body"]'
+            );
+
+            const scene = document.querySelector('.cube-scene');
+
+            function updateBodyButton(unfolded) {
+                // 펼쳐진 상태에서는 몸 변경 버튼 비활성화
+                bodyButton.disabled = unfolded;
+
+                bodyButton.title = unfolded
+                    ? '큐브를 접으면 몸을 변경할 수 있습니다.'
+                    : '몸 이미지 변경';
+            }
+
+            // 현재 상태에 맞춰 초기화
+            updateBodyButton(
+                main.classList.contains('is-unfolded')
+            );
+
+            button.addEventListener('click', () => {
+                const unfolded = main.classList.toggle(
+                    'is-unfolded'
+                );
+
+                button.setAttribute(
+                    'aria-expanded',
+                    String(unfolded)
+                );
+
+                button.querySelector('span').textContent =
+                    unfolded ? 'fold cube' : 'unfold cube';
+
+                updateBodyButton(unfolded);
+
+                scene.setAttribute(
+                    'aria-label',
+                    unfolded
+                        ? '큐브 여섯 면의 전개도'
+                        : '드래그하여 회전하는 큐브'
+                );
+
+                scene.classList.remove('is-rotating');
+            });
+        }
+
+        /* 큐브 드래그 회전 및 몸 이미지 전환 */
+        function setupCubeRotation() {
+            const scene = document.querySelector('.cube-scene');
+            const cube = document.querySelector('.cube');
+
+            let rotationX = -18;
+            let rotationY = -28;
+            let drag = null;
+
+            const sensitivity = 0.45;
+
+            const bodyImage = document.querySelector('.body-image');
+            const bodyButton = document.querySelector(
+                '[data-action="toggle-body"]'
+            );
+
+            let animalBody = false;
+
+            bodyButton.addEventListener('click', () => {
+                animalBody = !animalBody;
+
+                bodyImage.src = animalBody
+                    ? 'abody.png'
+                    : 'body.png';
+
+                bodyImage.alt = animalBody
+                    ? '동물 상반신'
+                    : '남성 상반신';
+
+                bodyButton.setAttribute(
+                    'aria-pressed',
+                    String(animalBody)
+                );
+
+                bodyButton.setAttribute(
+                    'aria-label',
+                    animalBody
+                        ? '사람 몸으로 전환'
+                        : '동물 몸으로 전환'
+                );
+            });
+
+            scene.addEventListener('pointerdown', (event) => {
+                if (
+                    document.querySelector('main')
+                        .classList.contains('is-unfolded')
+                ) {
+                    return;
+                }
+
+                if (
+                    !event.isPrimary ||
+                    event.button !== 0 ||
+                    drag
+                ) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                drag = {
+                    pointerId: event.pointerId,
+                    lastX: event.clientX,
+                    lastY: event.clientY
+                };
+
+                scene.setPointerCapture(event.pointerId);
+                scene.classList.add('is-rotating');
+            });
+
+            scene.addEventListener('pointermove', (event) => {
+                if (!drag || drag.pointerId !== event.pointerId) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                const deltaX = event.clientX - drag.lastX;
+                const deltaY = event.clientY - drag.lastY;
+
+                rotationY += deltaX * sensitivity;
+                rotationX -= deltaY * sensitivity;
+
+                cube.style.transform = `
+                    rotateX(${rotationX}deg)
+                    rotateY(${rotationY}deg)
+                `;
+
+                drag.lastX = event.clientX;
+                drag.lastY = event.clientY;
+            });
+
+            function finishRotation(event) {
+                if (!drag || drag.pointerId !== event.pointerId) {
+                    return;
+                }
+
+                const pointerId = drag.pointerId;
+                drag = null;
+
+                scene.classList.remove('is-rotating');
+
+                if (scene.hasPointerCapture(pointerId)) {
+                    scene.releasePointerCapture(pointerId);
+                }
+            }
+
+            scene.addEventListener('pointerup', finishRotation);
+            scene.addEventListener('pointercancel', finishRotation);
+            scene.addEventListener(
+                'lostpointercapture',
+                finishRotation
+            );
+
+            scene.addEventListener('dragstart', (event) => {
+                event.preventDefault();
+            });
+
+            window.addEventListener('blur', () => {
+                if (drag) {
+                    finishRotation({
+                        pointerId: drag.pointerId
+                    });
+                }
+            });
+        }
+
+        /* 모서리 드래그 페이지 이동 */
+        function setupCornerNavigation() {
+            const main = document.querySelector('main');
+            const ratio = document.querySelector('.ratio');
+
+            const links = Array.from(
+                document.querySelectorAll('.corner-link')
+            );
+
+            let drag = null;
+
+            function findCorner(x, y) {
+                const bounds = main.getBoundingClientRect();
+
+                const width = Math.min(
+                    180,
+                    Math.max(90, bounds.width * 0.23)
+                );
+
+                const height = Math.min(
+                    150,
+                    Math.max(90, bounds.height * 0.2)
+                );
+
+                const left =
+                    x >= bounds.left &&
+                    x <= bounds.left + width;
+
+                const right =
+                    x <= bounds.right &&
+                    x >= bounds.right - width;
+
+                const top =
+                    y >= bounds.top &&
+                    y <= bounds.top + height;
+
+                const bottom =
+                    y <= bounds.bottom &&
+                    y >= bounds.bottom - height;
+
+                if (left && top) return 'top-left';
+                if (right && top) return 'top-right';
+                if (left && bottom) return 'bottom-left';
+                if (right && bottom) return 'bottom-right';
+
+                return null;
+            }
+
+            function highlight(corner) {
+                links.forEach((link) => {
+                    link.classList.toggle(
+                        'is-target',
+                        link.dataset.corner === corner
+                    );
+                });
+            }
+
+            function restore() {
+                ratio.style.removeProperty('left');
+                ratio.style.removeProperty('top');
+                ratio.style.removeProperty('right');
+
+                main.classList.remove('is-navigating');
+                ratio.classList.remove('is-dragging');
+
+                highlight(null);
+            }
+
+            ratio.addEventListener('pointerdown', (event) => {
+                if (
+                    !event.isPrimary ||
+                    event.button !== 0 ||
+                    drag
+                ) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                const bounds = ratio.getBoundingClientRect();
+
+                drag = {
+                    pointerId: event.pointerId,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    offsetX: event.clientX - bounds.left,
+                    offsetY: event.clientY - bounds.top,
+                    moved: false
+                };
+
+                ratio.setPointerCapture(event.pointerId);
+            });
+
+            ratio.addEventListener('pointermove', (event) => {
+                if (!drag || drag.pointerId !== event.pointerId) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                if (!drag.moved) {
+                    const distance = Math.hypot(
+                        event.clientX - drag.startX,
+                        event.clientY - drag.startY
+                    );
+
+                    if (distance < 7) return;
+
+                    drag.moved = true;
+                    main.classList.add('is-navigating');
+
+                    const origin = ratio.getBoundingClientRect();
+                    const parent = main.getBoundingClientRect();
+
+                    ratio.style.left =
+                        `${origin.left - parent.left}px`;
+
+                    ratio.style.top =
+                        `${origin.top - parent.top}px`;
+
+                    ratio.style.right = 'auto';
+                    ratio.classList.add('is-dragging');
+                }
+
+                const bounds = main.getBoundingClientRect();
+                const graphic = ratio.getBoundingClientRect();
+
+                const x = Math.max(
+                    0,
+                    Math.min(
+                        bounds.width - graphic.width,
+                        event.clientX - bounds.left - drag.offsetX
+                    )
+                );
+
+                const y = Math.max(
+                    0,
+                    Math.min(
+                        bounds.height - graphic.height,
+                        event.clientY - bounds.top - drag.offsetY
+                    )
+                );
+
+                ratio.style.left = `${x}px`;
+                ratio.style.top = `${y}px`;
+                ratio.style.right = 'auto';
+
+                highlight(
+                    findCorner(event.clientX, event.clientY)
+                );
+            });
+
+            function finish(event, cancelled = false) {
+                if (!drag || drag.pointerId !== event.pointerId) {
+                    return;
+                }
+
+                const corner = !cancelled && drag.moved
+                    ? findCorner(event.clientX, event.clientY)
+                    : null;
+
+                const target = links.find(
+                    (link) => link.dataset.corner === corner
+                );
+
+                const pointerId = drag.pointerId;
+                drag = null;
+
+                if (ratio.hasPointerCapture(pointerId)) {
+                    ratio.releasePointerCapture(pointerId);
+                }
+
+                restore();
+
+                if (target) {
+                    window.location.assign(target.href);
+                }
+            }
+
+            ratio.addEventListener('pointerup', (event) => {
+                finish(event);
+            });
+
+            ratio.addEventListener('pointercancel', (event) => {
+                finish(event, true);
+            });
+
+            ratio.addEventListener(
+                'lostpointercapture',
+                (event) => {
+                    finish(event, true);
+                }
+            );
+
+            ratio.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+            });
+
+            ratio.addEventListener('dragstart', (event) => {
+                event.preventDefault();
+            });
+
+            window.addEventListener('resize', () => {
+                if (drag) {
+                    finish({ pointerId: drag.pointerId }, true);
+                }
+            });
+
+            window.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && drag) {
+                    finish({ pointerId: drag.pointerId }, true);
+                }
+            });
+        }
+
+        /* 비율 그래픽 */
+        const ratio = document.querySelector('.ratio');
+        const counts = {
+            human: 8,
+            animal: 8
+        };
+
+        const total = counts.human + counts.animal;
+
+        const humanDots = total
+            ? Math.round(counts.human / total * 16)
+            : 0;
+
+        for (let i = 0; i < 16; i++) {
+            const dot = document.createElement('span');
+
+            dot.className = i < humanDots
+                ? 'dot'
+                : 'dot animal';
+
+            ratio.append(dot);
+        }
+
+        setupFaceShuffle();
+        setupCubeRotation();
+        setupCubeUnfold();
+        setupFaceClick();
+        setupCornerNavigation();
+    </script>
+</body>
+</html>
