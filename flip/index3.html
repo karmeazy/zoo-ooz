@@ -1,0 +1,976 @@
+<!doctype html>
+<html lang="ko">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Zoo | FLIP CARD</title>
+
+    <!-- 공통 파비콘 -->
+    <link rel="icon" type="image/png" href="../common/favicon.png">
+
+    <style>
+        :root {
+            --page-background: #2c2c2c;
+            --stripe-blue: #80bdff;
+            --stripe-peach: #ffe8dd;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Courier New', monospace;
+            background: var(--page-background);
+            color: #ffffff;
+        }
+
+        main {
+            position: relative;
+            width: 100%;
+            height: 100dvh;
+            overflow: hidden;
+            isolation: isolate;
+        }
+
+        /* 우측 가장자리 반복 컬러 바 */
+        main::after {
+            content: '';
+            position: absolute;
+            z-index: 3;
+            top: 0;
+            right: 0;
+            width: 2.75vw;
+            height: 100%;
+            background: repeating-linear-gradient(
+                180deg,
+                #d500f9 0 4.9vh,
+                #ff0066 4.9vh 19.05vh
+            );
+            pointer-events: none;
+        }
+
+
+        /* 얼굴 전체 위치와 크기 */
+        .face-stage {
+            position: absolute;
+            z-index: 1;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            height: min(77.6dvh, 112vw);
+            width: auto;
+            aspect-ratio: 3 / 4;
+        }
+
+        /* 3열 × 4행 */
+        .face-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            grid-template-rows: repeat(4, minmax(0, 1fr));
+            width: 100%;
+            height: 100%;
+
+            /* 파트 사이 간격 */
+            gap: 8px;
+
+            padding: 0;
+            border: 0;
+            background: #000000;
+        }
+
+        .face-part {
+            position: relative;
+            min-width: 0;
+            min-height: 0;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: var(--page-background);
+            perspective: 850px;
+            cursor: pointer;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .face-part:focus-visible {
+            outline: 2px solid var(--stripe-blue);
+            outline-offset: -2px;
+            z-index: 4;
+        }
+
+        .face-part.is-flipping {
+            z-index: 2;
+        }
+
+        /* 각 카드 중앙 회전 축 */
+        .face-part::after {
+            content: '';
+            position: absolute;
+            z-index: 5;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            transform: translateY(-50%);
+            background: var(--page-background);
+            pointer-events: none;
+        }
+
+        .fixed-half {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .fixed-top {
+            top: 0;
+        }
+
+        .fixed-bottom {
+            bottom: 0;
+        }
+
+        .slice-art {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 200%;
+            background-size: 300% 400%;
+            background-repeat: no-repeat;
+        }
+
+        .slice-art.is-top {
+            top: 0;
+        }
+
+        .slice-art.is-bottom {
+            top: -100%;
+        }
+
+        /* 중앙 축에서 아래로 넘어가는 반장 */
+        .flap-leaf {
+            position: absolute;
+            z-index: 3;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 50%;
+            visibility: hidden;
+            transform-origin: center bottom;
+            transform-style: preserve-3d;
+            pointer-events: none;
+        }
+
+        .face-part.is-flipping .flap-leaf {
+            visibility: visible;
+        }
+
+        .flap-side {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+        }
+
+        .flap-back {
+            transform: rotateX(180deg);
+        }
+
+        .flap-shade {
+            position: absolute;
+            inset: 0;
+            background: #000000;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .load-status {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            margin: 8px 0 0;
+            color: #666666;
+            font-size: 11px;
+            line-height: 1.5;
+            text-align: center;
+        }
+
+        .load-status[hidden] {
+            display: none;
+        }
+
+        /* 모서리 이동 그래픽 */
+        .ratio {
+            position: absolute;
+            z-index: 8;
+            display: grid;
+            grid-template-columns:
+                repeat(4, clamp(18px, 1.78vw, 36px));
+            cursor: grab;
+            touch-action: none;
+            user-select: none;
+        }
+
+        .ratio[data-corner="top-left"] {
+            top: 4.6vh;
+            left: 2.15vw;
+        }
+
+        .ratio[data-corner="top-right"] {
+            top: 4.6vh;
+            right: 2.15vw;
+        }
+
+        .ratio[data-corner="bottom-left"] {
+            bottom: 4.6vh;
+            left: 2.15vw;
+        }
+
+        .ratio[data-corner="bottom-right"] {
+            bottom: 4.6vh;
+            right: 2.15vw;
+        }
+
+        .ratio.is-dragging {
+            cursor: grabbing;
+            bottom: auto;
+        }
+
+        .dot {
+            width: clamp(18px, 1.78vw, 36px);
+            height: clamp(18px, 1.78vw, 36px);
+            border: 2px solid #ff00db;
+            background: #ff002b;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        .dot.animal {
+            background: #00ffe4;
+            border-color: #00ff41;
+        }
+
+        /* 페이지 이동 목적지 */
+        .corner-navigation {
+            position: absolute;
+            inset: 0;
+            z-index: 7;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        main.is-navigating .corner-navigation {
+            visibility: visible;
+        }
+
+        .corner-link {
+            position: absolute;
+            display: grid;
+            place-items: center;
+            width: clamp(90px, 23%, 180px);
+            height: clamp(90px, 20%, 150px);
+            padding: 12px;
+            border: 1px dashed #000000;
+            background: rgb(245 245 245 / 90%);
+            color: #000000;
+            font-size: clamp(11px, 1vw, 15px);
+            text-align: center;
+            text-decoration: none;
+            transition: background-color 0.15s ease;
+        }
+
+        .corner-link[data-corner="top-left"] {
+            top: 0;
+            left: 0;
+        }
+
+        .corner-link[data-corner="top-right"] {
+            top: 0;
+            right: 0;
+        }
+
+        .corner-link[data-corner="bottom-left"] {
+            bottom: 0;
+            left: 0;
+        }
+
+        .corner-link[data-corner="bottom-right"] {
+            bottom: 0;
+            right: 0;
+        }
+
+        .corner-link.is-target {
+            border-style: solid;
+            background: var(--stripe-blue);
+        }
+
+        @media (max-width: 600px) {
+            .description {
+                top: 3vh;
+                right: 5vw;
+                width: 90vw;
+                font-size: 10px;
+                line-height: 1.45;
+                font-weight: 400;
+            }
+
+            .face-stage {
+                top: 54%;
+                height: min(68dvh, 112vw);
+            }
+
+            .ratio {
+                grid-template-columns: repeat(4, 4.5vw);
+            }
+
+            .dot {
+                width: 4.5vw;
+                height: 4.5vw;
+            }
+        }
+       .home-link {
+            position: absolute;
+            z-index: 10;
+            top: 3.5%;
+            left: 50%;
+            transform: translateX(-50%);
+
+            margin: 0;
+            padding: 0;
+            border: none;
+            background: transparent;
+            color: #fff;
+
+            font-family: 'Courier New', monospace;
+            font-size: clamp(14px, 1.15vw, 22px);
+            font-weight: 400;
+            line-height: normal;
+            letter-spacing: .06em;
+            text-decoration: none;
+            white-space: nowrap;
+        }
+
+        .home-link:hover {
+            color: #fff;
+            background: transparent;
+            opacity: .65;
+        }
+
+        .home-link:focus-visible {
+            outline: 1px dashed currentColor;
+            outline-offset: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <main>
+        <a class="home-link" href="../home/home.html" aria-label="홈으로 돌아가기">
+            Zoo | ooZ
+        </a>
+        <section
+            class="face-stage"
+            aria-label="커서를 올려 얼굴의 각 부분을 바꿔보세요"
+        >
+            <div class="face-grid"></div>
+            <p class="load-status" role="status">Loading…</p>
+        </section>
+
+        <div
+            class="ratio"
+            data-corner="bottom-left"
+            title="모서리로 드래그하여 페이지 이동"
+        ></div>
+
+        <!-- 현재 파일: flip/index3.html -->
+        <nav class="corner-navigation">
+            <a
+                class="corner-link"
+                data-corner="top-left"
+                href="../lab/index.html"
+            >LAB ↖</a>
+
+            <a
+                class="corner-link"
+                data-corner="top-right"
+                href="../zoo/index2.html"
+            >ZOO ↗</a>
+
+            <a
+                class="corner-link"
+                data-corner="bottom-left"
+                href="../flip/index3.html"
+            >FLIP CARD ↙</a>
+
+            <a
+                class="corner-link"
+                data-corner="bottom-right"
+                href="../cube/about.html"
+            >CUBE ↘</a>
+        </nav>
+    </main>
+
+    <script>
+        /* 이미지: index3.html과 같은 flip 폴더에 배치 */
+        const faceFiles = [
+            'h1.png',
+            'h2.png',
+            'h3.png',
+            'h4.png',
+            'h5.png',
+            'a1.png',
+            'a2.png',
+            'a3.png',
+            'a4.png',
+            'a5.png'
+        ];
+
+        /* 효과음 크기: 0 ~ 1 */
+        const soundVolume = 0.2;
+
+        const soundPool = Array.from({ length: 12 }, () => {
+            const audio = new Audio('plastic-flip.mp3');
+            audio.preload = 'auto';
+            audio.volume = soundVolume;
+            return audio;
+        });
+
+        let soundCursor = 0;
+
+        function playFlipSound() {
+            const audio = soundPool[soundCursor];
+            soundCursor = (soundCursor + 1) % soundPool.length;
+            audio.currentTime = 0;
+            audio.volume = soundVolume;
+            audio.play().catch(() => {});
+        }
+
+        /* 첫 클릭 또는 키 입력으로 소리 준비 */
+        let soundUnlocked = false;
+
+        function unlockSound(event) {
+            if (!event.isTrusted || soundUnlocked) return;
+
+            soundUnlocked = true;
+
+            soundPool.forEach((audio) => {
+                audio.volume = 0;
+
+                audio.play().then(() => {
+                    audio.pause();
+                    audio.currentTime = 0;
+                    audio.volume = soundVolume;
+                }).catch(() => {
+                    audio.volume = soundVolume;
+                    soundUnlocked = false;
+                });
+            });
+        }
+
+        document.addEventListener('pointerdown', unlockSound, true);
+        document.addEventListener('keydown', unlockSound, true);
+
+        function preloadImage(file) {
+            return new Promise((resolve) => {
+                const image = new Image();
+
+                image.onload = () => {
+                    resolve({ file, image, loaded: true });
+                };
+
+                image.onerror = () => {
+                    resolve({ file, loaded: false });
+                };
+
+                image.src = file;
+            });
+        }
+
+        /* 얼굴 조각 생성 및 플립 */
+        async function setupFaceShuffle() {
+            const grid = document.querySelector('.face-grid');
+            const status = document.querySelector('.load-status');
+
+            const reducedMotion = matchMedia(
+                '(prefers-reduced-motion: reduce)'
+            );
+
+            const flipDuration = 720;
+            const cooldown = 160;
+
+            const results = await Promise.all(
+                faceFiles.map(preloadImage)
+            );
+
+            const availableFiles = results
+                .filter((result) => result.loaded)
+                .map((result) => result.file);
+
+            const missingFiles = results
+                .filter((result) => !result.loaded)
+                .map((result) => result.file);
+
+            if (!availableFiles.length) {
+                status.textContent =
+                    '이미지를 불러올 수 없습니다. PNG 파일을 HTML과 같은 폴더에 넣어주세요.';
+                return;
+            }
+
+            if (missingFiles.length) {
+                status.textContent =
+                    '불러오지 못한 파일: ' + missingFiles.join(', ');
+            } else {
+                status.hidden = true;
+            }
+
+            grid.replaceChildren();
+
+            function setSlice(container, file, column, row, half) {
+                const art = document.createElement('div');
+                art.className = `slice-art is-${half}`;
+                art.style.backgroundImage = `url("${file}")`;
+                art.style.backgroundPosition =
+                    `${column * 50}% ${row * 100 / 3}%`;
+
+                container.replaceChildren(art);
+            }
+
+            /* 무작위 사진 한 장의 온전한 얼굴로 시작 */
+            const initialIndex = Math.floor(
+                Math.random() * availableFiles.length
+            );
+
+            for (let index = 0; index < 12; index++) {
+                const column = index % 3;
+                const row = Math.floor(index / 3);
+
+                let currentIndex = initialIndex;
+                let busy = false;
+                let nextAllowedTime = 0;
+
+                const part = document.createElement('button');
+                part.type = 'button';
+                part.className = 'face-part';
+
+                part.setAttribute(
+                    'aria-label',
+                    `${index + 1}번 얼굴 조각 바꾸기`
+                );
+
+                part.innerHTML = `
+                    <div class="fixed-half fixed-top"></div>
+                    <div class="fixed-half fixed-bottom"></div>
+                    <div class="flap-leaf" aria-hidden="true">
+                        <div class="flap-side flap-front">
+                            <span class="flap-shade"></span>
+                        </div>
+                        <div class="flap-side flap-back">
+                            <span class="flap-shade"></span>
+                        </div>
+                    </div>
+                `;
+
+                grid.append(part);
+
+                const top = part.querySelector('.fixed-top');
+                const bottom = part.querySelector('.fixed-bottom');
+                const leaf = part.querySelector('.flap-leaf');
+                const leafFront = part.querySelector('.flap-front');
+                const leafBack = part.querySelector('.flap-back');
+
+                function setFixedImage(file) {
+                    setSlice(top, file, column, row, 'top');
+                    setSlice(bottom, file, column, row, 'bottom');
+                }
+
+                function setLeafImage(container, file, half) {
+                    setSlice(container, file, column, row, half);
+
+                    const shade = document.createElement('span');
+                    shade.className = 'flap-shade';
+                    container.append(shade);
+
+                    return shade;
+                }
+
+                setFixedImage(availableFiles[currentIndex]);
+
+                async function flipPart() {
+                    if (
+                        busy ||
+                        availableFiles.length < 2 ||
+                        performance.now() < nextAllowedTime
+                    ) {
+                        return;
+                    }
+
+                    busy = true;
+
+                    const nextIndex = (
+                        currentIndex +
+                        1 +
+                        Math.floor(
+                            Math.random() * (availableFiles.length - 1)
+                        )
+                    ) % availableFiles.length;
+
+                    const currentFile = availableFiles[currentIndex];
+                    const nextFile = availableFiles[nextIndex];
+
+                    if (reducedMotion.matches) {
+                        setFixedImage(nextFile);
+                        currentIndex = nextIndex;
+                        playFlipSound();
+                        nextAllowedTime = performance.now() + cooldown;
+                        busy = false;
+                        return;
+                    }
+
+                    setSlice(top, nextFile, column, row, 'top');
+                    setSlice(bottom, currentFile, column, row, 'bottom');
+
+                    const frontShade = setLeafImage(
+                        leafFront,
+                        currentFile,
+                        'top'
+                    );
+
+                    const backShade = setLeafImage(
+                        leafBack,
+                        nextFile,
+                        'bottom'
+                    );
+
+                    part.classList.add('is-flipping');
+
+                    const shadingAnimations = [
+                        frontShade.animate(
+                            [
+                                { opacity: 0 },
+                                { opacity: 0.28 }
+                            ],
+                            {
+                                duration: flipDuration,
+                                fill: 'forwards'
+                            }
+                        ),
+                        backShade.animate(
+                            [
+                                { opacity: 0.28 },
+                                { opacity: 0 }
+                            ],
+                            {
+                                duration: flipDuration,
+                                fill: 'forwards'
+                            }
+                        )
+                    ];
+
+                    const animation = leaf.animate(
+                        [
+                            { transform: 'rotateX(0deg)' },
+                            { transform: 'rotateX(-180deg)' }
+                        ],
+                        {
+                            duration: flipDuration,
+                            easing: 'cubic-bezier(0.42, 0, 0.3, 1)',
+                            fill: 'forwards'
+                        }
+                    );
+
+                    try {
+                        await animation.finished;
+                        playFlipSound();
+                    } catch (error) {
+                        // 취소된 애니메이션도 아래에서 정리
+                    } finally {
+                        setFixedImage(nextFile);
+                        currentIndex = nextIndex;
+
+                        part.classList.remove('is-flipping');
+                        animation.cancel();
+
+                        shadingAnimations.forEach((item) => {
+                            item.cancel();
+                        });
+
+                        nextAllowedTime = performance.now() + cooldown;
+                        busy = false;
+                    }
+                }
+
+                part.addEventListener('pointerenter', (event) => {
+                    if (
+                        event.pointerType === 'mouse' ||
+                        event.pointerType === 'pen'
+                    ) {
+                        flipPart();
+                    }
+                });
+
+                part.addEventListener('pointerdown', (event) => {
+                    if (event.pointerType === 'touch') {
+                        flipPart();
+                    }
+                });
+
+                part.addEventListener('click', (event) => {
+                    if (event.detail === 0) {
+                        flipPart();
+                    }
+                });
+            }
+        }
+
+        /* 모서리 드래그 페이지 이동 */
+        function setupCornerNavigation() {
+            const main = document.querySelector('main');
+            const ratio = document.querySelector('.ratio');
+            const links = Array.from(
+                document.querySelectorAll('.corner-link')
+            );
+
+            let drag = null;
+
+            function findCorner(x, y) {
+                const bounds = main.getBoundingClientRect();
+
+                const width = Math.min(
+                    180,
+                    Math.max(90, bounds.width * 0.23)
+                );
+
+                const height = Math.min(
+                    150,
+                    Math.max(90, bounds.height * 0.2)
+                );
+
+                const left =
+                    x >= bounds.left &&
+                    x <= bounds.left + width;
+
+                const right =
+                    x <= bounds.right &&
+                    x >= bounds.right - width;
+
+                const top =
+                    y >= bounds.top &&
+                    y <= bounds.top + height;
+
+                const bottom =
+                    y <= bounds.bottom &&
+                    y >= bounds.bottom - height;
+
+                if (left && top) return 'top-left';
+                if (right && top) return 'top-right';
+                if (left && bottom) return 'bottom-left';
+                if (right && bottom) return 'bottom-right';
+
+                return null;
+            }
+
+            function highlight(corner) {
+                links.forEach((link) => {
+                    link.classList.toggle(
+                        'is-target',
+                        link.dataset.corner === corner
+                    );
+                });
+            }
+
+            function restore() {
+                ratio.style.removeProperty('left');
+                ratio.style.removeProperty('top');
+                ratio.style.removeProperty('right');
+                main.classList.remove('is-navigating');
+                ratio.classList.remove('is-dragging');
+                highlight(null);
+            }
+
+            ratio.addEventListener('pointerdown', (event) => {
+                if (
+                    !event.isPrimary ||
+                    event.button !== 0 ||
+                    drag
+                ) {
+                    return;
+                }
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                const bounds = ratio.getBoundingClientRect();
+
+                drag = {
+                    pointerId: event.pointerId,
+                    startX: event.clientX,
+                    startY: event.clientY,
+                    offsetX: event.clientX - bounds.left,
+                    offsetY: event.clientY - bounds.top,
+                    moved: false
+                };
+
+                ratio.setPointerCapture(event.pointerId);
+            });
+
+            ratio.addEventListener('pointermove', (event) => {
+                if (!drag || drag.pointerId !== event.pointerId) {
+                    return;
+                }
+
+                event.preventDefault();
+
+                if (!drag.moved) {
+                    const distance = Math.hypot(
+                        event.clientX - drag.startX,
+                        event.clientY - drag.startY
+                    );
+
+                    if (distance < 7) return;
+
+                    drag.moved = true;
+                    main.classList.add('is-navigating');
+
+                    const origin = ratio.getBoundingClientRect();
+                    const parent = main.getBoundingClientRect();
+
+                    ratio.style.left =
+                        `${origin.left - parent.left}px`;
+
+                    ratio.style.top =
+                        `${origin.top - parent.top}px`;
+
+                    ratio.style.right = 'auto';
+                    ratio.classList.add('is-dragging');
+                }
+
+                const bounds = main.getBoundingClientRect();
+                const graphic = ratio.getBoundingClientRect();
+
+                const x = Math.max(
+                    0,
+                    Math.min(
+                        bounds.width - graphic.width,
+                        event.clientX - bounds.left - drag.offsetX
+                    )
+                );
+
+                const y = Math.max(
+                    0,
+                    Math.min(
+                        bounds.height - graphic.height,
+                        event.clientY - bounds.top - drag.offsetY
+                    )
+                );
+
+                ratio.style.left = `${x}px`;
+                ratio.style.top = `${y}px`;
+                ratio.style.right = 'auto';
+
+                highlight(findCorner(event.clientX, event.clientY));
+            });
+
+            function finish(event, cancelled = false) {
+                if (!drag || drag.pointerId !== event.pointerId) {
+                    return;
+                }
+
+                const corner = !cancelled && drag.moved
+                    ? findCorner(event.clientX, event.clientY)
+                    : null;
+
+                const target = links.find(
+                    (link) => link.dataset.corner === corner
+                );
+
+                const pointerId = drag.pointerId;
+                drag = null;
+
+                if (ratio.hasPointerCapture(pointerId)) {
+                    ratio.releasePointerCapture(pointerId);
+                }
+
+                restore();
+
+                if (target) {
+                    window.location.assign(target.href);
+                }
+            }
+
+            ratio.addEventListener('pointerup', (event) => {
+                finish(event);
+            });
+
+            ratio.addEventListener('pointercancel', (event) => {
+                finish(event, true);
+            });
+
+            ratio.addEventListener('lostpointercapture', (event) => {
+                finish(event, true);
+            });
+
+            ratio.addEventListener('click', (event) => {
+                event.preventDefault();
+                event.stopPropagation();
+            });
+
+            ratio.addEventListener('dragstart', (event) => {
+                event.preventDefault();
+            });
+
+            window.addEventListener('resize', () => {
+                if (drag) {
+                    finish({ pointerId: drag.pointerId }, true);
+                }
+            });
+
+            window.addEventListener('keydown', (event) => {
+                if (event.key === 'Escape' && drag) {
+                    finish({ pointerId: drag.pointerId }, true);
+                }
+            });
+        }
+
+        /* 비율 그래픽 */
+        const ratio = document.querySelector('.ratio');
+        const counts = {
+            human: 8,
+            animal: 8
+        };
+
+        const total = counts.human + counts.animal;
+
+        const humanDots = total
+            ? Math.round(counts.human / total * 16)
+            : 0;
+
+        for (let i = 0; i < 16; i++) {
+            const dot = document.createElement('span');
+
+            dot.className = i < humanDots
+                ? 'dot'
+                : 'dot animal';
+
+            ratio.append(dot);
+        }
+
+        setupFaceShuffle();
+        setupCornerNavigation();
+    </script>
+</body>
+</html>
